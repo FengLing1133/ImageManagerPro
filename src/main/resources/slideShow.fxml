@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="340.0" minWidth="420.0" prefHeight="700.0"
+            prefWidth="1000.0" styleClass="slideshow-root" style="-fx-background-color: #000000;" stylesheets="@style.css" xmlns="http://javafx.com/javafx/17"
+            xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.yang.controller.SlideShowController">
+    <padding>
+        <Insets bottom="0.0" left="0.0" right="0.0" top="0.0"/>
+    </padding>
+    <center>
+        <StackPane fx:id="stackPane" style="-fx-background-color: #000000;" minWidth="400.0" minHeight="300.0">
+            <ImageView fx:id="slideImageView" pickOnBounds="true" preserveRatio="true" smooth="true" />
+        </StackPane>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER" prefHeight="70.0" prefWidth="1000.0" spacing="15.0" style="-fx-background-color: #111111;" BorderPane.alignment="CENTER">
+            <padding>
+                <Insets bottom="10.0" left="20.0" right="20.0" top="10.0"/>
+            </padding>
+            <children>
+                <Button fx:id="btnPrev" mnemonicParsing="false" onAction="#prevImage" styleClass="slide-btn" text="Prev"/>
+                <Button fx:id="btnNext" mnemonicParsing="false" onAction="#nextImage" styleClass="slide-btn" text="Next"/>
+                <Button fx:id="btnZoomIn" mnemonicParsing="false" onAction="#zoomIn" onMousePressed="#stopZooming" styleClass="slide-btn" text="Zoom In"/>
+                <Button fx:id="btnZoomOut" mnemonicParsing="false" onAction="#zoomOut" onMousePressed="#stopZooming" styleClass="slide-btn" text="Zoom Out"/>
+                <Button fx:id="btnPlay" mnemonicParsing="false" onAction="#startPlay" styleClass="slide-btn" text="Play"/>
+                <Button fx:id="btnStop" mnemonicParsing="false" onAction="#stopPlay" styleClass="slide-btn" text="Stop"/>
+                <Label fx:id="pageLabel" alignment="CENTER" prefHeight="40.0" prefWidth="100.0" style="-fx-text-fill: #aaaaaa;" text="0/0">
+                    <font>
+                        <Font size="16.0"/>
+                    </font>
+                </Label>
+            </children>
+        </HBox>
+    </bottom>
+</BorderPane>
