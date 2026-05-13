@@ -114,7 +114,6 @@ public class VBoxFactory {
     public void createImageVBoxAsync(
             File file,
             Consumer<VBox> callback,
-            Map<String, Image> imageCache,
             java.util.concurrent.ExecutorService imageExecutor,
             int thumbSize,
             String normalStyle,
@@ -122,19 +121,21 @@ public class VBoxFactory {
             Set<VBox> selectedVBoxes,
             Map<VBox, File> vBoxToFile,
             Runnable updateTipLabel,
-            Runnable onDoubleClickImage
+            Runnable onDoubleClickImage,
+            com.yang.service.impl.ImageServiceImpl imageService
     ) {
-        String filePath = file.getAbsolutePath(); // 路径
-        if (imageCache.containsKey(filePath)) {
-            Image image = imageCache.get(filePath); // 缓存命中
-            createImageVBox(file, image, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage);
+        String filePath = file.getAbsolutePath();
+        Image cached = imageService.getCachedImage(filePath);
+        if (cached != null) {
+            createImageVBox(file, cached, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage);
             return;
         }
-        imageExecutor.submit(() -> { // 异步加载图片
+        imageExecutor.submit(() -> {
             try {
-                Image img = new Image(file.toURI().toString(), thumbSize, thumbSize, true, true, false); // 加载缩略图
-                imageCache.put(filePath, img);// 加入缓存
-                Platform.runLater(() -> createImageVBox(file, img, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage));
+                Image img = imageService.loadThumbnail(file, thumbSize);
+                if (img != null) {
+                    Platform.runLater(() -> createImageVBox(file, img, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage));
+                }
             } catch (Exception e) {
                 System.out.println("⚠️ 图片加载失败：" + file.getName());
             }
