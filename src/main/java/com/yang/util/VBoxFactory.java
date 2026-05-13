@@ -122,7 +122,7 @@ public class VBoxFactory {
             Map<VBox, File> vBoxToFile,
             Runnable updateTipLabel,
             Runnable onDoubleClickImage,
-            com.yang.service.impl.ImageServiceImpl imageService
+            com.yang.service.ImageService imageService
     ) {
         String filePath = file.getAbsolutePath();
         Image cached = imageService.getCachedImage(filePath);

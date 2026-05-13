@@ -3,6 +3,7 @@ package com.yang.service;
 import javafx.scene.image.Image;
 import java.io.File;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 /**
  * 图片业务逻辑层
@@ -37,4 +38,19 @@ public interface ImageService {
      * 清空图片缓存
      */
     void clearCache();
+
+    /**
+     * 获取后台图片加载线程池
+     */
+    ExecutorService getExecutor();
+
+    /**
+     * 从缓存获取图片
+     */
+    Image getCachedImage(String filePath);
+
+    /**
+     * 将图片放入缓存
+     */
+    void cacheImage(String filePath, Image image);
 }

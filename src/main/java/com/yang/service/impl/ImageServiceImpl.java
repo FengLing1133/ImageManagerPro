@@ -1,7 +1,6 @@
 package com.yang.service.impl;
 
 import com.yang.repository.ImageRepository;
-import com.yang.repository.impl.ImageRepositoryImpl;
 import com.yang.service.ImageService;
 import javafx.scene.image.Image;
 import org.springframework.stereotype.Service;
@@ -15,9 +14,9 @@ import java.util.concurrent.ExecutorService;
 @Service
 public class ImageServiceImpl implements ImageService {
 
-    private final ImageRepositoryImpl imageRepository;
+    private final ImageRepository imageRepository;
 
-    public ImageServiceImpl(ImageRepositoryImpl imageRepository) {
+    public ImageServiceImpl(ImageRepository imageRepository) {
         this.imageRepository = imageRepository;
     }
 
@@ -33,8 +32,7 @@ public class ImageServiceImpl implements ImageService {
 
     @Override
     public List<String> getImagePaths(File directory) {
-        return imageRepository instanceof com.yang.repository.impl.ImageRepositoryImpl impl
-                ? List.of() : List.of();
+        return imageRepository.getImagePaths(directory);
     }
 
     @Override
@@ -50,23 +48,17 @@ public class ImageServiceImpl implements ImageService {
         imageRepository.clearCache();
     }
 
-    /**
-     * 获取后台图片加载线程池
-     */
+    @Override
     public ExecutorService getExecutor() {
         return imageRepository.getExecutor();
     }
 
-    /**
-     * 获取缓存的图片
-     */
+    @Override
     public Image getCachedImage(String filePath) {
         return imageRepository.getCachedImage(filePath);
     }
 
-    /**
-     * 将图片放入缓存
-     */
+    @Override
     public void cacheImage(String filePath, Image image) {
         imageRepository.cacheImage(filePath, image);
     }

@@ -4,12 +4,10 @@ import com.yang.repository.ImageRepository;
 import javafx.scene.image.Image;
 import org.springframework.stereotype.Repository;
 import java.io.File;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 /**
  * 图片数据访问层实现
@@ -81,17 +79,30 @@ public class ImageRepositoryImpl implements ImageRepository {
         imageCache.clear();
     }
 
-    /**
-     * 获取后台图片加载线程池（供异步加载使用）
-     */
+    @Override
     public ExecutorService getExecutor() {
         return imageExecutor;
     }
 
-    /**
-     * 关闭线程池
-     */
+    @Override
     public void shutdown() {
         imageExecutor.shutdown();
+    }
+
+    @Override
+    public List<String> getImagePaths(File directory) {
+        File[] files = directory.listFiles();
+        if (files == null) return Collections.emptyList();
+        return Arrays.stream(files)
+                .filter(File::isFile)
+                .filter(f -> {
+                    String lower = f.getName().toLowerCase();
+                    return lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+                            || lower.endsWith(".png") || lower.endsWith(".gif")
+                            || lower.endsWith(".bmp");
+                })
+                .map(File::getAbsolutePath)
+                .sorted()
+                .collect(Collectors.toList());
     }
 }

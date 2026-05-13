@@ -2,7 +2,6 @@ package com.yang.controller;
 
 import org.springframework.stereotype.Component;
 import com.yang.service.*;
-import com.yang.service.impl.ImageServiceImpl;
 import com.yang.strategy.RenderStrategy;
 import com.yang.util.AlterUtil;
 import com.yang.util.VBoxFactory;
@@ -46,7 +45,7 @@ public class MainController {
 
     private final NavigationService navigationService;
     private final FileOperationService fileOperationService;
-    private final ImageServiceImpl imageService;
+    private final ImageService imageService;
     private final DirectoryService directoryService;
     private final RenderStrategy renderStrategy;
     private final VBoxFactory vBoxFactory = new VBoxFactory();
@@ -73,7 +72,7 @@ public class MainController {
 
     public MainController(NavigationService navigationService,
                           FileOperationService fileOperationService,
-                          ImageServiceImpl imageService,
+                          ImageService imageService,
                           DirectoryService directoryService,
                           RenderStrategy renderStrategy) {
         this.navigationService = navigationService;
@@ -91,38 +90,6 @@ public class MainController {
         setupPathFieldListener();
         initFlowPaneHint();
         directoryTreeService.initDirectoryTree();
-
-        dirTreeView.setCellFactory(tv -> new javafx.scene.control.TreeCell<>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    setText(item);
-                    javafx.scene.image.ImageView iconView = null;
-                    if (getTreeItem().getParent() == null || "我的电脑".equals(item)) {
-                        setGraphic(null);
-                    } else if (item.matches("^[A-Z]:\\\\$")) {
-                        java.net.URL iconUrl = getClass().getResource("/icons/hard-drive.png");
-                        if (iconUrl != null) {
-                            iconView = new javafx.scene.image.ImageView(iconUrl.toExternalForm());
-                        }
-                    } else {
-                        java.net.URL iconUrl = getClass().getResource("/icons/folder.png");
-                        if (iconUrl != null) {
-                            iconView = new javafx.scene.image.ImageView(iconUrl.toExternalForm());
-                        }
-                    }
-                    if (iconView != null) {
-                        iconView.setFitWidth(18);
-                        iconView.setFitHeight(18);
-                        setGraphic(iconView);
-                    }
-                }
-            }
-        });
 
         imageScrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> {
             imageFlowPane.setPrefWidth(newBounds.getWidth());
@@ -173,7 +140,37 @@ public class MainController {
 
     private void setupDirTreeCellFactory() {
         dirTreeView.setCellFactory(tv -> {
-            TreeCell<String> cell = new TextFieldTreeCell<>();
+            javafx.scene.control.TreeCell<String> cell = new javafx.scene.control.TreeCell<>() {
+                @Override
+                protected void updateItem(String item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setGraphic(null);
+                    } else {
+                        setText(item);
+                        javafx.scene.image.ImageView iconView = null;
+                        if (getTreeItem().getParent() == null || "我的电脑".equals(item)) {
+                            setGraphic(null);
+                        } else if (item.matches("^[A-Z]:\\\\$")) {
+                            java.net.URL iconUrl = getClass().getResource("/icons/hard-drive.png");
+                            if (iconUrl != null) {
+                                iconView = new javafx.scene.image.ImageView(iconUrl.toExternalForm());
+                            }
+                        } else {
+                            java.net.URL iconUrl = getClass().getResource("/icons/folder.png");
+                            if (iconUrl != null) {
+                                iconView = new javafx.scene.image.ImageView(iconUrl.toExternalForm());
+                            }
+                        }
+                        if (iconView != null) {
+                            iconView.setFitWidth(18);
+                            iconView.setFitHeight(18);
+                            setGraphic(iconView);
+                        }
+                    }
+                }
+            };
             cell.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 1 && cell.getTreeItem() != null) {
                     TreeItem<String> item = cell.getTreeItem();
@@ -449,8 +446,7 @@ public class MainController {
             tipLabel.setText("Welcome to Image Manager");
             return;
         }
-        String sizeStr = fileOperationService.calculateDirStats(allFiles)[1] + "";
-        sizeStr = formatSize(cachedTotalSize);
+        String sizeStr = formatSize(cachedTotalSize);
         String selectedStr = selectedVBoxes.isEmpty() ? "" : " | 选中: " + selectedVBoxes.size();
         long selectedImageSize = selectedVBoxes.stream()
                 .map(vBoxToFile::get)
