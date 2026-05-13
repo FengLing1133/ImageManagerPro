@@ -1,10 +1,13 @@
 package com.yang.service;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
+import javafx.util.Duration;
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -14,7 +17,7 @@ public class DirectoryTreeService {
     }
 
     private final TreeView<String> dirTreeView; // 目录树控件引用
-    private final Map<TreeItem<String>, String> treeItemStatus = new HashMap<>(); // 节点加载状态
+    private final Map<TreeItem<String>, String> treeItemStatus = new ConcurrentHashMap<>(); // 节点加载状态
     private static final String STATUS_UNLOADED = "unloaded";   // 未加载
     private static final String STATUS_LOADING = "loading";     // 加载中
     private static final String STATUS_LOADED = "loaded";       // 已加载
@@ -121,14 +124,11 @@ public class DirectoryTreeService {
         Platform.runLater(() -> expandPathStepByStep(root, targetPath, 0)); // 进入递归展开
     }
 
-    //逐级展开路径（修复根节点处理）
+    //逐级展开路径（使用 PauseTransition 替代 Thread.sleep，避免阻塞 UI 线程）
     private void expandPathStepByStep(TreeItem<String> currentItem, String targetPath, int depth) {
-        String indent = "  ".repeat(depth); // 缩进用于日志
         String currentPath = getFullPath(currentItem);
 
-        if (depth > 15) { // 防止死循环
-            return;
-        }
+        if (depth > 15) return; // 防止死循环
 
         if (targetPath.equals(currentPath)) { // 找到目标
             currentItem.setExpanded(true);
@@ -139,78 +139,59 @@ public class DirectoryTreeService {
         if (currentItem.getValue().equals("我的电脑")) { // 根节点特殊处理
             String driveLetter = targetPath.substring(0, 3);
             TreeItem<String> driveItem = findChildByName(currentItem, driveLetter);
-            if (driveItem == null) {
-                return;
-            }
+            if (driveItem == null) return;
+
             if (!driveItem.isExpanded()) {
                 driveItem.setExpanded(true);
-                Platform.runLater(() -> {
-                    try {
-                        Thread.sleep(300);// 等待加载盘符
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();// 恢复中断状态
-                    }
-                    Platform.runLater(() -> expandPathStepByStep(driveItem, targetPath, depth + 1));// 继续展开
-                });
-            } else {
-                expandPathStepByStep(driveItem, targetPath, depth + 1);
             }
+            // 非阻塞等待后继续展开
+            PauseTransition pause = new PauseTransition(Duration.millis(300));
+            pause.setOnFinished(e -> expandPathStepByStep(driveItem, targetPath, depth + 1));
+            pause.play();
             return;
         }
 
-        if (!targetPath.startsWith(currentPath)) { // 路径不匹配
-            return;
-        }
+        if (!targetPath.startsWith(currentPath)) return; // 路径不匹配
 
-        String separator = File.separator.equals("\\") ? "\\\\" : File.separator;// 处理Windows路径分隔符
-        String remaining = targetPath.substring(currentPath.length());// 获取剩余路径
-        String[] parts = remaining.split(separator);// 分割路径部分
+        String separator = File.separator.equals("\\") ? "\\\\" : File.separator;
+        String remaining = targetPath.substring(currentPath.length());
+        String[] parts = Arrays.stream(remaining.split(separator))
+                .filter(s -> !s.isEmpty()).toArray(String[]::new);
 
-        parts = Arrays.stream(parts).filter(s -> !s.isEmpty()).toArray(String[]::new);// 过滤掉空字符串
-
-        if (parts.length == 0) {
-            return;
-        }
+        if (parts.length == 0) return;
 
         String nextName = parts[0];
 
-        if (currentItem.getChildren().isEmpty()) { // 子节点未加载
-            Platform.runLater(() -> {
-                try {
-                    Thread.sleep(300);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                Platform.runLater(() -> {
-                    System.out.println(indent + "↻ 重试深度" + depth);
-                    expandPathStepByStep(currentItem, targetPath, depth);
-                });
-            });
+        if (currentItem.getChildren().isEmpty()) { // 子节点未加载，非阻塞重试
+            retryExpand(currentItem, targetPath, depth, 0);
             return;
         }
 
         TreeItem<String> nextChild = findChildByName(currentItem, nextName);
-
-        if (nextChild == null) {
-            return;
-        }
+        if (nextChild == null) return;
 
         if (!nextChild.isExpanded()) { // 递归展开
             nextChild.setExpanded(true);
-
-            Platform.runLater(() -> {
-                try {
-                    Thread.sleep(200);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                Platform.runLater(() -> {
-                    expandPathStepByStep(nextChild, targetPath, depth + 1);
-                });
-            });
+            PauseTransition pause = new PauseTransition(Duration.millis(200));
+            pause.setOnFinished(e -> expandPathStepByStep(nextChild, targetPath, depth + 1));
+            pause.play();
         } else {
             expandPathStepByStep(nextChild, targetPath, depth + 1);
         }
+    }
+
+    //非阻塞重试展开，避免无限循环
+    private void retryExpand(TreeItem<String> item, String targetPath, int depth, int retryCount) {
+        if (retryCount > 10) return; // 最多重试 10 次
+        PauseTransition retryPause = new PauseTransition(Duration.millis(200));
+        retryPause.setOnFinished(e -> {
+            if (item.getChildren().isEmpty()) {
+                retryExpand(item, targetPath, depth, retryCount + 1); // 继续重试
+            } else {
+                expandPathStepByStep(item, targetPath, depth); // 子节点已加载，继续展开
+            }
+        });
+        retryPause.play();
     }
 
     //根据名称查找子节点

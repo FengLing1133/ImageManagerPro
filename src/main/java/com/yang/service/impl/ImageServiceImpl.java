@@ -1,5 +1,6 @@
 package com.yang.service.impl;
 
+import com.yang.repository.FileRepository;
 import com.yang.repository.ImageRepository;
 import com.yang.service.ImageService;
 import javafx.scene.image.Image;
@@ -15,9 +16,11 @@ import java.util.concurrent.ExecutorService;
 public class ImageServiceImpl implements ImageService {
 
     private final ImageRepository imageRepository;
+    private final FileRepository fileRepository;
 
-    public ImageServiceImpl(ImageRepository imageRepository) {
+    public ImageServiceImpl(ImageRepository imageRepository, FileRepository fileRepository) {
         this.imageRepository = imageRepository;
+        this.fileRepository = fileRepository;
     }
 
     @Override
@@ -32,7 +35,7 @@ public class ImageServiceImpl implements ImageService {
 
     @Override
     public List<String> getImagePaths(File directory) {
-        return imageRepository.getImagePaths(directory);
+        return fileRepository.getImagePaths(directory);
     }
 
     @Override

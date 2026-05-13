@@ -42,11 +42,6 @@ public interface ImageRepository {
     void clearCache();
 
     /**
-     * 获取目录下所有图片文件路径（已排序）
-     */
-    List<String> getImagePaths(File directory);
-
-    /**
      * 获取后台图片加载线程池
      */
     ExecutorService getExecutor();

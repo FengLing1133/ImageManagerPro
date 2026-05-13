@@ -1,6 +1,7 @@
 package com.yang.strategy.impl;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,27 +18,32 @@ class RenderStrategyImplTest {
     // === shouldUseProgressiveRender ===
 
     @Test
-    void shouldUseProgressiveRender_600个文件返回true() {
-        assertThat(strategy.shouldUseProgressiveRender(600)).isTrue();
+    @DisplayName("shouldUseProgressiveRender: 50个文件返回true")
+    void shouldUseProgressiveRender_50FilesReturnsTrue() {
+        assertThat(strategy.shouldUseProgressiveRender(50)).isTrue();
     }
 
     @Test
-    void shouldUseProgressiveRender_超过600返回true() {
+    @DisplayName("shouldUseProgressiveRender: 超过50返回true")
+    void shouldUseProgressiveRender_moreThan50ReturnsTrue() {
         assertThat(strategy.shouldUseProgressiveRender(1000)).isTrue();
     }
 
     @Test
-    void shouldUseProgressiveRender_599个文件返回false() {
-        assertThat(strategy.shouldUseProgressiveRender(599)).isFalse();
+    @DisplayName("shouldUseProgressiveRender: 49个文件返回false")
+    void shouldUseProgressiveRender_49FilesReturnsFalse() {
+        assertThat(strategy.shouldUseProgressiveRender(49)).isFalse();
     }
 
     @Test
-    void shouldUseProgressiveRender_少量文件返回false() {
+    @DisplayName("shouldUseProgressiveRender: 少量文件返回false")
+    void shouldUseProgressiveRender_fewFilesReturnsFalse() {
         assertThat(strategy.shouldUseProgressiveRender(10)).isFalse();
     }
 
     @Test
-    void shouldUseProgressiveRender_零个文件返回false() {
+    @DisplayName("shouldUseProgressiveRender: 零个文件返回false")
+    void shouldUseProgressiveRender_zeroFilesReturnsFalse() {
         assertThat(strategy.shouldUseProgressiveRender(0)).isFalse();
     }
 }

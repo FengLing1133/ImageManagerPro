@@ -1,6 +1,7 @@
 package com.yang.controller;
 
 import org.springframework.stereotype.Component;
+import com.yang.repository.FileRepository;
 import com.yang.service.*;
 import com.yang.strategy.RenderStrategy;
 import com.yang.util.AlterUtil;
@@ -44,16 +45,26 @@ public class MainController {
     private final FileOperationService fileOperationService;
     private final ImageService imageService;
     private final DirectoryService directoryService;
+    private final FileRepository fileRepository;
     private final RenderStrategy renderStrategy;
     private final VBoxFactory vBoxFactory = new VBoxFactory();
 
     private DirectoryTreeService directoryTreeService;
     private final Set<VBox> selectedVBoxes = new HashSet<>();
     private final Map<VBox, File> vBoxToFile = new HashMap<>();
+    private final Map<File, Long> fileSizeCache = new HashMap<>();
     private final List<File> allFiles = new ArrayList<>();
     private long cachedImageCount = 0;
     private long cachedTotalSize = 0;
     private long activeLoadToken = 0;
+
+    // 懒加载相关
+    private static final int INITIAL_BATCH_SIZE = 120;
+    private static final int LOAD_MORE_BATCH_SIZE = 60;
+    private List<File> pendingImageFiles = new ArrayList<>();
+    private List<File> pendingNonImageFiles = new ArrayList<>();
+    private Map<File, Integer> pendingFileIndexMap = new HashMap<>();
+    private volatile boolean isLoadingMore = false;
 
     private static final String NORMAL_STYLE = "-fx-alignment: center; -fx-border-color: #d4dce8; -fx-border-width: 1.5px; -fx-background-color: #ffffff; -fx-background-radius: 14; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(56, 68, 84, 0.11), 10, 0, 0, 2);";
     private static final String SELECTED_STYLE = "-fx-alignment: center; -fx-border-color: #5a98ea; -fx-border-width: 2px; -fx-background-color: #eaf2ff; -fx-background-radius: 14; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(90, 152, 234, 0.24), 12, 0, 0, 2);";
@@ -62,20 +73,20 @@ public class MainController {
     private static final int THUMB_SIZE = 120;
     private static final int HOVER_EFFECT_THRESHOLD = 500;
     private static final int BUILD_BATCH_SIZE = 50;
-    private static final int RENDER_BATCH_SIZE = 50;
 
     private final Deque<Runnable> pendingBuildTasks = new ArrayDeque<>();
-    private final Deque<RenderStrategy.RenderTask> pendingRenderTasks = new ArrayDeque<>();
 
     public MainController(NavigationService navigationService,
                           FileOperationService fileOperationService,
                           ImageService imageService,
                           DirectoryService directoryService,
+                          FileRepository fileRepository,
                           RenderStrategy renderStrategy) {
         this.navigationService = navigationService;
         this.fileOperationService = fileOperationService;
         this.imageService = imageService;
         this.directoryService = directoryService;
+        this.fileRepository = fileRepository;
         this.renderStrategy = renderStrategy;
     }
 
@@ -93,8 +104,50 @@ public class MainController {
         });
 
         imageScrollPane.viewportBoundsProperty().addListener((obs, oldVal, newVal) -> {
-            imageAnchorPane.setPrefHeight(newVal.getHeight());
             imageAnchorPane.setPrefWidth(newVal.getWidth());
+            // 视口高度变化时重新计算 AnchorPane 高度
+            double viewportH = newVal.getHeight();
+            if (imageFlowPane.getChildren().isEmpty()) {
+                imageAnchorPane.setPrefHeight(Math.max(viewportH, 0));
+            }
+        });
+
+        // AnchorPane 高度跟随 FlowPane 内容高度
+        // FlowPane 无 topAnchor 约束，高度由内容驱动，不会循环依赖
+        imageFlowPane.heightProperty().addListener((obs, oldVal, newVal) -> {
+            double flowH = newVal.doubleValue();
+            if (flowH > 0) {
+                imageAnchorPane.setPrefHeight(flowH);
+                // 强制触发布局更新，使 ScrollPane 能及时检测到内容高度变化并显示滚动条
+                imageAnchorPane.requestLayout();
+            }
+        });
+
+        // 空目录时 AnchorPane 填满视口以显示提示标签
+        imageFlowPane.getChildren().addListener((javafx.collections.ListChangeListener<javafx.scene.Node>) c -> {
+            if (imageFlowPane.getChildren().isEmpty()) {
+                double viewportH = imageScrollPane.getViewportBounds() != null
+                        ? imageScrollPane.getViewportBounds().getHeight() : 0;
+                imageAnchorPane.setPrefHeight(Math.max(viewportH, 0));
+            }
+        });
+
+        // 滚动到底部时加载更多图片
+        imageScrollPane.vvalueProperty().addListener((obs, oldVal, newVal) -> {
+            double vvalue = newVal.doubleValue();
+            if (vvalue > 0.89 && !isLoadingMore && hasMoreFiles()) {
+                loadMoreFiles();
+            }
+        });
+
+        // 监听内容区域大小变化，当内容不足一屏时自动加载更多
+        imageFlowPane.heightProperty().addListener((obs, oldHeight, newHeight) -> {
+            if (newHeight.doubleValue() > 0 && !isLoadingMore && hasMoreFiles()) {
+                double viewportHeight = imageScrollPane.getViewportBounds().getHeight();
+                if (viewportHeight > 0 && newHeight.doubleValue() <= viewportHeight * 1.5) {
+                    loadMoreFiles();
+                }
+            }
         });
 
         imageFlowPane.setOnContextMenuRequested(event -> {
@@ -228,21 +281,20 @@ public class MainController {
     private void loadImagesToFlowPane(File dir) {
         long loadToken = ++activeLoadToken;
         renderStrategy.stopAll();
+        pendingBuildTasks.clear();
         allFiles.clear();
         selectedVBoxes.clear();
         vBoxToFile.clear();
+        fileSizeCache.clear();
+        pendingImageFiles.clear();
+        pendingNonImageFiles.clear();
+        pendingFileIndexMap.clear();
+        isLoadingMore = false;
         imageFlowPane.getChildren().clear();
 
         imageService.getExecutor().submit(() -> {
-            List<File> visibleFiles = new ArrayList<>();
-            File[] files = dir.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (!file.isHidden() && !file.getName().startsWith(".")) {
-                        visibleFiles.add(file);
-                    }
-                }
-            }
+            List<File> visibleFiles = fileRepository.listVisibleFiles(dir);
+
             if (visibleFiles.isEmpty()) {
                 Platform.runLater(() -> {
                     if (isStaleLoad(loadToken, dir)) return;
@@ -254,18 +306,17 @@ public class MainController {
                 return;
             }
 
-            visibleFiles.sort((f1, f2) -> {
-                if (f1.isDirectory() && !f2.isDirectory()) return -1;
-                if (!f1.isDirectory() && f2.isDirectory()) return 1;
-                return f1.getName().compareToIgnoreCase(f2.getName());
-            });
-
             List<File> imageFiles = new ArrayList<>();
             List<File> nonImageFiles = new ArrayList<>();
+            Map<File, Long> localSizeCache = new HashMap<>();
             long imageCount = 0;
             long totalSize = 0;
             for (File file : visibleFiles) {
-                if (file.isFile()) totalSize += file.length();
+                if (file.isFile()) {
+                    long size = file.length();
+                    localSizeCache.put(file, size);
+                    totalSize += size;
+                }
                 if (!file.isDirectory() && imageService.isImageFile(file)) {
                     imageFiles.add(file);
                     imageCount++;
@@ -275,62 +326,122 @@ public class MainController {
             }
             final long finalImageCount = imageCount;
             final long finalTotalSize = totalSize;
+            final Map<File, Long> finalSizeCache = localSizeCache;
             final boolean enableHoverEffects = visibleFiles.size() <= HOVER_EFFECT_THRESHOLD;
-            final boolean progressiveRender = renderStrategy.shouldUseProgressiveRender(visibleFiles.size());
 
             Platform.runLater(() -> {
                 if (isStaleLoad(loadToken, dir)) return;
                 emptyTipLabel.setVisible(false);
                 allFiles.addAll(visibleFiles);
+                fileSizeCache.putAll(finalSizeCache);
                 cachedImageCount = finalImageCount;
                 cachedTotalSize = finalTotalSize;
                 vBoxFactory.setHoverEffectsEnabled(enableHoverEffects);
 
-                Map<File, Integer> fileIndexMap = new HashMap<>();
-                List<VBox> placeholders = new ArrayList<>(visibleFiles.size());
+                pendingFileIndexMap = new HashMap<>();
                 for (int i = 0; i < visibleFiles.size(); i++) {
-                    fileIndexMap.put(visibleFiles.get(i), i);
-                    VBox placeholder = new VBox();
-                    placeholder.setPrefSize(130, 150);
-                    placeholder.setStyle("-fx-background-color: transparent;");
-                    placeholders.add(placeholder);
+                    pendingFileIndexMap.put(visibleFiles.get(i), i);
                 }
-                imageFlowPane.getChildren().setAll(placeholders);
 
-                for (File file : nonImageFiles) {
+                // 只处理初始批次的文件
+                int nonImageCount = Math.min(nonImageFiles.size(), INITIAL_BATCH_SIZE);
+                List<File> initialNonImage = nonImageFiles.subList(0, nonImageCount);
+                int remaining = INITIAL_BATCH_SIZE - nonImageCount;
+                int imageCount2 = Math.min(imageFiles.size(), remaining);
+                List<File> initialImage = imageFiles.subList(0, imageCount2);
+
+                // 存储待加载的文件
+                pendingNonImageFiles = new ArrayList<>(nonImageFiles.subList(nonImageCount, nonImageFiles.size()));
+                pendingImageFiles = new ArrayList<>(imageFiles.subList(imageCount2, imageFiles.size()));
+
+                // 为初始批次创建构建任务（直接添加到 FlowPane，不使用渲染管道）
+                for (File file : initialNonImage) {
                     pendingBuildTasks.addLast(() -> createVBoxAsync(file, vBox -> {
-                        Integer index = fileIndexMap.get(file);
-                        if (index != null) enqueueRenderTask(loadToken, dir, index, vBox);
+                        if (isStaleLoad(loadToken, dir)) return;
+                        addVBoxToFlowPane(vBox);
                     }));
                 }
 
-                for (File imageFile : imageFiles) {
+                for (File imageFile : initialImage) {
                     pendingBuildTasks.addLast(() -> createImageVBoxAsync(imageFile, vBox -> {
-                        Integer index = fileIndexMap.get(imageFile);
-                        if (index != null) enqueueRenderTask(loadToken, dir, index, vBox);
+                        if (isStaleLoad(loadToken, dir)) return;
+                        addVBoxToFlowPane(vBox);
                     }));
                 }
 
-                if (progressiveRender) {
-                    renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, null);
-                } else {
-                    while (!pendingBuildTasks.isEmpty() && !isStaleLoad(loadToken, dir)) {
-                        pendingBuildTasks.pollFirst().run();
-                    }
-                }
+                renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, null);
                 updateTipLabel();
             });
         });
     }
 
-    private boolean isStaleLoad(long loadToken, File dir) {
-        return loadToken != activeLoadToken || !Objects.equals(navigationService.getCurrentDirectory(), dir);
+    // 直接添加 VBox 到 FlowPane
+    private void addVBoxToFlowPane(VBox vBox) {
+        imageFlowPane.getChildren().add(vBox);
+        javafx.scene.layout.FlowPane.setMargin(vBox, new javafx.geometry.Insets(5));
+        // 每次添加后立即更新 AnchorPane 高度，确保 ScrollPane 能检测到内容变化
+        double flowH = imageFlowPane.prefHeight(-1);
+        if (flowH > 0) {
+            imageAnchorPane.setPrefHeight(flowH);
+            imageScrollPane.requestLayout();
+        }
     }
 
-    private void enqueueRenderTask(long loadToken, File dir, int index, VBox vBox) {
-        if (isStaleLoad(loadToken, dir)) return;
-        pendingRenderTasks.addLast(new RenderStrategy.RenderTask(index, vBox));
-        renderStrategy.startRenderPipeline(pendingRenderTasks, imageFlowPane, RENDER_BATCH_SIZE);
+    private boolean hasMoreFiles() {
+        return !pendingNonImageFiles.isEmpty() || !pendingImageFiles.isEmpty();
+    }
+
+    // 滚动到底部时加载更多文件
+    private void loadMoreFiles() {
+        if (!hasMoreFiles()) return;
+        isLoadingMore = true;
+        File currentDir = navigationService.getCurrentDirectory();
+        if (currentDir == null) {
+            isLoadingMore = false;
+            return;
+        }
+        long loadToken = activeLoadToken;
+
+        // 取出下一批文件
+        List<File> batchNonImage = new ArrayList<>();
+        List<File> batchImage = new ArrayList<>();
+        int remaining = LOAD_MORE_BATCH_SIZE;
+
+        while (remaining > 0 && !pendingNonImageFiles.isEmpty()) {
+            batchNonImage.add(pendingNonImageFiles.remove(0));
+            remaining--;
+        }
+        while (remaining > 0 && !pendingImageFiles.isEmpty()) {
+            batchImage.add(pendingImageFiles.remove(0));
+            remaining--;
+        }
+
+        if (batchNonImage.isEmpty() && batchImage.isEmpty()) {
+            isLoadingMore = false;
+            return;
+        }
+
+        for (File file : batchNonImage) {
+            pendingBuildTasks.addLast(() -> createVBoxAsync(file, vBox -> {
+                if (isStaleLoad(loadToken, currentDir)) return;
+                addVBoxToFlowPane(vBox);
+            }));
+        }
+
+        for (File imageFile : batchImage) {
+            pendingBuildTasks.addLast(() -> createImageVBoxAsync(imageFile, vBox -> {
+                if (isStaleLoad(loadToken, currentDir)) return;
+                addVBoxToFlowPane(vBox);
+            }));
+        }
+
+        renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, () -> {
+            isLoadingMore = false;
+        });
+    }
+
+    private boolean isStaleLoad(long loadToken, File dir) {
+        return loadToken != activeLoadToken || !Objects.equals(navigationService.getCurrentDirectory(), dir);
     }
 
     private void createVBoxAsync(File file, Consumer<VBox> callback) {
@@ -381,7 +492,12 @@ public class MainController {
 
     @FXML
     private void openSlideShow() {
-        List<String> imagePaths = collectImagePathsFromLoadedFiles();
+        File currentDir = navigationService.getCurrentDirectory();
+        if (currentDir == null) {
+            showAlert(Alert.AlertType.WARNING, "未选择目录", "请先在左侧选择包含图片的文件夹");
+            return;
+        }
+        List<String> imagePaths = imageService.getImagePaths(currentDir);
         if (imagePaths.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "未选择目录", "请先在左侧选择包含图片的文件夹");
             return;
@@ -435,7 +551,7 @@ public class MainController {
                 .map(vBoxToFile::get)
                 .filter(Objects::nonNull)
                 .filter(imageService::isImageFile)
-                .mapToLong(File::length)
+                .mapToLong(f -> fileSizeCache.getOrDefault(f, 0L))
                 .sum();
         String selectedSizeStr = (selectedVBoxes.isEmpty() || selectedImageSize == 0) ? "" : " | 选中图片总大小: " + formatSize(selectedImageSize);
         tipLabel.setText("目录: " + currentDir.getName() + " | 图片数量: " + cachedImageCount + " | 总大小: " + sizeStr + selectedStr + selectedSizeStr);
@@ -455,24 +571,18 @@ public class MainController {
     }
 
     private void openSlideShowForImage(File imageFile) {
-        List<String> imagePaths = collectImagePathsFromLoadedFiles();
+        File currentDir = navigationService.getCurrentDirectory();
+        if (currentDir == null) {
+            showAlert(Alert.AlertType.WARNING, "未找到图片", "当前目录中没有可播放的图片");
+            return;
+        }
+        List<String> imagePaths = imageService.getImagePaths(currentDir);
         if (imagePaths.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "未找到图片", "当前目录中没有可播放的图片");
             return;
         }
         int index = imagePaths.indexOf(imageFile.getAbsolutePath());
         showSlideShowWindow(imagePaths, Math.max(index, 0));
-    }
-
-    private List<String> collectImagePathsFromLoadedFiles() {
-        List<String> imagePaths = new ArrayList<>();
-        for (File file : allFiles) {
-            if (file.isFile() && imageService.isImageFile(file)) {
-                imagePaths.add(file.getAbsolutePath());
-            }
-        }
-        imagePaths.sort(String::compareToIgnoreCase);
-        return imagePaths;
     }
 
     private void showSlideShowWindow(List<String> imagePaths, int startIndex) {
@@ -589,18 +699,7 @@ public class MainController {
         cachedImageCount = stats[0];
         cachedTotalSize = stats[1];
     }
-
-    private void setupVBoxContextMenu(VBox vBox) {
-        vBox.setOnContextMenuRequested(event -> {
-            if (imageContextMenu != null && imageContextMenu.isShowing()) imageContextMenu.hide();
-            hideBlankContextMenu();
-            int selCount = selectedVBoxes.size();
-            ContextMenu menu = vBoxFactory.buildContextMenu(selCount, this::deleteSelected, this::copySelected, this::renameSelected, this::pasteFiles);
-            menu.show(vBox, event.getScreenX(), event.getScreenY());
-            imageContextMenu = menu;
-        });
-    }
-
+    
     private void showAlert(Alert.AlertType type, String title, String content) {
         AlterUtil.showAlert(type, title, content, dirTreeView.getScene().getWindow());
     }

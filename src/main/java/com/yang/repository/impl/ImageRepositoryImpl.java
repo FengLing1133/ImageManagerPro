@@ -7,7 +7,6 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
 /**
  * 图片数据访问层实现
@@ -16,7 +15,7 @@ import java.util.stream.Collectors;
 @Repository
 public class ImageRepositoryImpl implements ImageRepository {
 
-    private static final int CACHE_MAX_SIZE = 200;
+    private static final int CACHE_MAX_SIZE = 500;
 
     private final Map<String, Image> imageCache = Collections.synchronizedMap(
             new LinkedHashMap<>(100, 0.75f, true) {
@@ -89,20 +88,4 @@ public class ImageRepositoryImpl implements ImageRepository {
         imageExecutor.shutdown();
     }
 
-    @Override
-    public List<String> getImagePaths(File directory) {
-        File[] files = directory.listFiles();
-        if (files == null) return Collections.emptyList();
-        return Arrays.stream(files)
-                .filter(File::isFile)
-                .filter(f -> {
-                    String lower = f.getName().toLowerCase();
-                    return lower.endsWith(".jpg") || lower.endsWith(".jpeg")
-                            || lower.endsWith(".png") || lower.endsWith(".gif")
-                            || lower.endsWith(".bmp");
-                })
-                .map(File::getAbsolutePath)
-                .sorted()
-                .collect(Collectors.toList());
-    }
 }

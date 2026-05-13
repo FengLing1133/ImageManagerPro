@@ -1,6 +1,7 @@
 package com.yang.repository.impl;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -26,7 +27,8 @@ class FileRepositoryImplTest {
     // === listVisibleFiles ===
 
     @Test
-    void listVisibleFiles_返回可见文件和目录() throws IOException {
+    @DisplayName("listVisibleFiles: 返回可见文件和目录")
+    void listVisibleFiles_returnsVisibleFilesAndDirectories() throws IOException {
         File visible = new File(tempDir, "test.txt");
         visible.createNewFile();
         File hidden = new File(tempDir, ".hidden");
@@ -39,7 +41,8 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    void listVisibleFiles_目录排在文件前面() throws IOException {
+    @DisplayName("listVisibleFiles: 目录排在文件前面")
+    void listVisibleFiles_directoriesBeforeFiles() throws IOException {
         File dir = new File(tempDir, "adir");
         dir.mkdir();
         File file = new File(tempDir, "afile.txt");
@@ -53,7 +56,8 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    void listVisibleFiles_按名称不区分大小写排序() throws IOException {
+    @DisplayName("listVisibleFiles: 按名称不区分大小写排序")
+    void listVisibleFiles_sortedByNameCaseInsensitive() throws IOException {
         new File(tempDir, "Banana.txt").createNewFile();
         new File(tempDir, "apple.txt").createNewFile();
         new File(tempDir, "Cherry.txt").createNewFile();
@@ -65,7 +69,8 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    void listVisibleFiles_空目录返回空列表() {
+    @DisplayName("listVisibleFiles: 空目录返回空列表")
+    void listVisibleFiles_emptyDirectoryReturnsEmptyList() {
         List<File> result = repository.listVisibleFiles(tempDir);
         assertThat(result).isEmpty();
     }
@@ -73,7 +78,8 @@ class FileRepositoryImplTest {
     // === deleteFile ===
 
     @Test
-    void deleteFile_删除存在的文件返回true() throws IOException {
+    @DisplayName("deleteFile: 删除存在的文件返回true")
+    void deleteFile_existingFileReturnsTrue() throws IOException {
         File file = new File(tempDir, "toDelete.txt");
         file.createNewFile();
 
@@ -84,7 +90,8 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    void deleteFile_删除不存在的文件返回false() {
+    @DisplayName("deleteFile: 删除不存在的文件返回false")
+    void deleteFile_nonExistentFileReturnsFalse() {
         File file = new File(tempDir, "nonexistent.txt");
 
         boolean result = repository.deleteFile(file);
@@ -95,7 +102,8 @@ class FileRepositoryImplTest {
     // === renameFile ===
 
     @Test
-    void renameFile_重命名成功返回true() throws IOException {
+    @DisplayName("renameFile: 重命名成功返回true")
+    void renameFile_successReturnsTrue() throws IOException {
         File file = new File(tempDir, "old.txt");
         file.createNewFile();
 
@@ -107,7 +115,8 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    void renameFile_目标已存在时返回false() throws IOException {
+    @DisplayName("renameFile: 目标已存在时返回false")
+    void renameFile_targetAlreadyExistsReturnsFalse() throws IOException {
         File old = new File(tempDir, "old.txt");
         old.createNewFile();
         new File(tempDir, "new.txt").createNewFile();
@@ -120,7 +129,8 @@ class FileRepositoryImplTest {
     // === copyFileTo ===
 
     @Test
-    void copyFileTo_复制文件到目标目录() throws IOException {
+    @DisplayName("copyFileTo: 复制文件到目标目录")
+    void copyFileTo_copiesFileToTargetDirectory() throws IOException {
         File src = new File(tempDir, "source.txt");
         Files.writeString(src.toPath(), "hello");
         File destDir = new File(tempDir, "dest");
@@ -135,7 +145,8 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    void copyFileTo_目标已存在时自动添加数字后缀() throws IOException {
+    @DisplayName("copyFileTo: 目标已存在时自动添加数字后缀")
+    void copyFileTo_autoAppendsNumericSuffixWhenTargetExists() throws IOException {
         File src = new File(tempDir, "file.txt");
         Files.writeString(src.toPath(), "original");
         File destDir = new File(tempDir, "dest");
@@ -149,7 +160,8 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    void copyFileTo_多个同名文件依次添加后缀() throws IOException {
+    @DisplayName("copyFileTo: 多个同名文件依次添加后缀")
+    void copyFileTo_appendsIncrementalSuffixForMultipleDuplicates() throws IOException {
         File src = new File(tempDir, "dup.txt");
         Files.writeString(src.toPath(), "data");
         File destDir = new File(tempDir, "dest");
@@ -166,35 +178,40 @@ class FileRepositoryImplTest {
     // === isImageFile ===
 
     @Test
-    void isImageFile_jpg文件返回true() throws IOException {
+    @DisplayName("isImageFile: jpg文件返回true")
+    void isImageFile_jpgReturnsTrue() throws IOException {
         File file = new File(tempDir, "photo.jpg");
         file.createNewFile();
         assertThat(repository.isImageFile(file)).isTrue();
     }
 
     @Test
-    void isImageFile_png文件返回true() throws IOException {
+    @DisplayName("isImageFile: png文件返回true")
+    void isImageFile_pngReturnsTrue() throws IOException {
         File file = new File(tempDir, "image.png");
         file.createNewFile();
         assertThat(repository.isImageFile(file)).isTrue();
     }
 
     @Test
-    void isImageFile_大写扩展名返回true() throws IOException {
+    @DisplayName("isImageFile: 大写扩展名返回true")
+    void isImageFile_upperCaseExtensionReturnsTrue() throws IOException {
         File file = new File(tempDir, "PHOTO.JPG");
         file.createNewFile();
         assertThat(repository.isImageFile(file)).isTrue();
     }
 
     @Test
-    void isImageFile_txt文件返回false() throws IOException {
+    @DisplayName("isImageFile: txt文件返回false")
+    void isImageFile_txtReturnsFalse() throws IOException {
         File file = new File(tempDir, "readme.txt");
         file.createNewFile();
         assertThat(repository.isImageFile(file)).isFalse();
     }
 
     @Test
-    void isImageFile_目录返回false() {
+    @DisplayName("isImageFile: 目录返回false")
+    void isImageFile_directoryReturnsFalse() {
         File dir = new File(tempDir, "photos");
         dir.mkdir();
         assertThat(repository.isImageFile(dir)).isFalse();
@@ -203,14 +220,16 @@ class FileRepositoryImplTest {
     // === isVisibleFile ===
 
     @Test
-    void isVisibleFile_普通文件返回true() throws IOException {
+    @DisplayName("isVisibleFile: 普通文件返回true")
+    void isVisibleFile_normalFileReturnsTrue() throws IOException {
         File file = new File(tempDir, "normal.txt");
         file.createNewFile();
         assertThat(repository.isVisibleFile(file)).isTrue();
     }
 
     @Test
-    void isVisibleFile_点开头文件返回false() throws IOException {
+    @DisplayName("isVisibleFile: 点开头文件返回false")
+    void isVisibleFile_dotPrefixFileReturnsFalse() throws IOException {
         File file = new File(tempDir, ".config");
         file.createNewFile();
         assertThat(repository.isVisibleFile(file)).isFalse();
@@ -219,34 +238,40 @@ class FileRepositoryImplTest {
     // === formatSize ===
 
     @Test
-    void formatSize_字节() {
+    @DisplayName("formatSize: 字节")
+    void formatSize_bytes() {
         assertThat(repository.formatSize(500)).isEqualTo("500 B");
     }
 
     @Test
-    void formatSize_千字节() {
+    @DisplayName("formatSize: 千字节")
+    void formatSize_kilobytes() {
         assertThat(repository.formatSize(1024)).isEqualTo("1.0 KB");
     }
 
     @Test
-    void formatSize_兆字节() {
+    @DisplayName("formatSize: 兆字节")
+    void formatSize_megabytes() {
         assertThat(repository.formatSize(1048576)).isEqualTo("1.0 MB");
     }
 
     @Test
-    void formatSize_吉字节() {
+    @DisplayName("formatSize: 吉字节")
+    void formatSize_gigabytes() {
         assertThat(repository.formatSize(1073741824)).isEqualTo("1.0 GB");
     }
 
     @Test
-    void formatSize_零字节() {
+    @DisplayName("formatSize: 零字节")
+    void formatSize_zeroBytes() {
         assertThat(repository.formatSize(0)).isEqualTo("0 B");
     }
 
     // === getImagePaths ===
 
     @Test
-    void getImagePaths_返回图片文件路径() throws IOException {
+    @DisplayName("getImagePaths: 返回图片文件路径")
+    void getImagePaths_returnsImageFilePaths() throws IOException {
         new File(tempDir, "a.jpg").createNewFile();
         new File(tempDir, "b.png").createNewFile();
         new File(tempDir, "c.txt").createNewFile();
@@ -258,7 +283,8 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    void getImagePaths_按路径排序() throws IOException {
+    @DisplayName("getImagePaths: 按路径排序")
+    void getImagePaths_sortedByPath() throws IOException {
         new File(tempDir, "c.jpg").createNewFile();
         new File(tempDir, "a.jpg").createNewFile();
         new File(tempDir, "b.jpg").createNewFile();
@@ -269,7 +295,8 @@ class FileRepositoryImplTest {
     }
 
     @Test
-    void getImagePaths_无图片返回空列表() throws IOException {
+    @DisplayName("getImagePaths: 无图片返回空列表")
+    void getImagePaths_noImagesReturnsEmptyList() throws IOException {
         new File(tempDir, "readme.txt").createNewFile();
 
         List<String> result = repository.getImagePaths(tempDir);
