@@ -66,20 +66,20 @@
                     <children>
                         <ScrollPane fx:id="imageScrollPane" hbarPolicy="NEVER" fitToWidth="true" fitToHeight="false" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                             <content>
-                                <AnchorPane fx:id="imageAnchorPane" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                <AnchorPane fx:id="imageAnchorPane" minHeight="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                     <children>
                                         <FlowPane fx:id="imageFlowPane" hgap="10.0" vgap="10.0" onMouseClicked="#clickBlank"
-                                                  AnchorPane.topAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+                                                  AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
                                             <padding>
                                                 <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                                             </padding>
                                         </FlowPane>
                                         <Label fx:id="emptyTipLabel" text="暂无内容"
                                                style="-fx-font-size: 18px;"
-                                               AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0"
+                                               AnchorPane.topAnchor="0.0"
                                                AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
                                                alignment="CENTER" textAlignment="CENTER" maxWidth="Infinity"
-                                               maxHeight="Infinity" visible="false"/>
+                                               visible="false"/>
                                     </children>
                                 </AnchorPane>
                             </content>

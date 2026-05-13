@@ -2,6 +2,7 @@ package com.yang.service.impl;
 
 import com.yang.repository.FileRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -32,7 +33,8 @@ class DirectoryServiceImplTest {
     // === listChildDirectories ===
 
     @Test
-    void listChildDirectories_返回子目录() {
+    @DisplayName("listChildDirectories: 返回子目录")
+    void listChildDirectories_returnsChildDirectories() {
         new File(tempDir, "alpha").mkdir();
         new File(tempDir, "beta").mkdir();
 
@@ -44,7 +46,8 @@ class DirectoryServiceImplTest {
     }
 
     @Test
-    void listChildDirectories_按名称排序() {
+    @DisplayName("listChildDirectories: 按名称排序")
+    void listChildDirectories_sortedByName() {
         new File(tempDir, "zebra").mkdir();
         new File(tempDir, "apple").mkdir();
         new File(tempDir, "mango").mkdir();
@@ -56,7 +59,8 @@ class DirectoryServiceImplTest {
     }
 
     @Test
-    void listChildDirectories_过滤系统目录() {
+    @DisplayName("listChildDirectories: 过滤系统目录")
+    void listChildDirectories_filtersSystemDirectories() {
         new File(tempDir, "Windows").mkdir();
         new File(tempDir, "$Recycle.Bin").mkdir();
         new File(tempDir, "Users").mkdir();
@@ -68,7 +72,8 @@ class DirectoryServiceImplTest {
     }
 
     @Test
-    void listChildDirectories_空目录返回空列表() {
+    @DisplayName("listChildDirectories: 空目录返回空列表")
+    void listChildDirectories_emptyDirectoryReturnsEmptyList() {
         List<File> result = service.listChildDirectories(tempDir);
         assertThat(result).isEmpty();
     }
@@ -76,7 +81,8 @@ class DirectoryServiceImplTest {
     // === getSystemRoots ===
 
     @Test
-    void getSystemRoots_返回非空数组() {
+    @DisplayName("getSystemRoots: 返回非空数组")
+    void getSystemRoots_returnsNonEmptyArray() {
         File[] roots = service.getSystemRoots();
         assertThat(roots).isNotEmpty();
     }
@@ -84,7 +90,8 @@ class DirectoryServiceImplTest {
     // === getPicturesDirectory ===
 
     @Test
-    void getPicturesDirectory_返回用户图片目录或null() {
+    @DisplayName("getPicturesDirectory: 返回用户图片目录或null")
+    void getPicturesDirectory_returnsPicturesDirOrNull() {
         File result = service.getPicturesDirectory();
         // 结果取决于测试环境是否有 Pictures 目录
         if (result != null) {
@@ -96,19 +103,22 @@ class DirectoryServiceImplTest {
     // === isSystemDirectory ===
 
     @Test
-    void isSystemDirectory_Windows目录返回true() {
+    @DisplayName("isSystemDirectory: Windows目录返回true")
+    void isSystemDirectory_windowsDirReturnsTrue() {
         File dir = new File(tempDir, "Windows");
         assertThat(service.isSystemDirectory(dir)).isTrue();
     }
 
     @Test
-    void isSystemDirectory_RecycleBin返回true() {
+    @DisplayName("isSystemDirectory: RecycleBin返回true")
+    void isSystemDirectory_recycleBinReturnsTrue() {
         File dir = new File(tempDir, "$Recycle.Bin");
         assertThat(service.isSystemDirectory(dir)).isTrue();
     }
 
     @Test
-    void isSystemDirectory_普通目录返回false() {
+    @DisplayName("isSystemDirectory: 普通目录返回false")
+    void isSystemDirectory_normalDirReturnsFalse() {
         File dir = new File(tempDir, "MyFolder");
         assertThat(service.isSystemDirectory(dir)).isFalse();
     }

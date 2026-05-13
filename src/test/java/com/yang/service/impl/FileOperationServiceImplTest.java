@@ -2,6 +2,7 @@ package com.yang.service.impl;
 
 import com.yang.repository.FileRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -33,7 +34,8 @@ class FileOperationServiceImplTest {
     // === deleteFiles ===
 
     @Test
-    void deleteFiles_成功删除的文件加入结果列表() {
+    @DisplayName("deleteFiles: 成功删除的文件加入结果列表")
+    void deleteFiles_deletedFilesAddedToResultList() {
         File f1 = mock(File.class);
         File f2 = mock(File.class);
         when(fileRepository.deleteFile(f1)).thenReturn(true);
@@ -45,7 +47,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void deleteFiles_全部删除成功() {
+    @DisplayName("deleteFiles: 全部删除成功")
+    void deleteFiles_allDeletedSuccessfully() {
         File f1 = mock(File.class);
         File f2 = mock(File.class);
         when(fileRepository.deleteFile(f1)).thenReturn(true);
@@ -57,7 +60,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void deleteFiles_空集合返回空列表() {
+    @DisplayName("deleteFiles: 空集合返回空列表")
+    void deleteFiles_emptySetReturnsEmptyList() {
         List<File> result = service.deleteFiles(Set.of());
         assertThat(result).isEmpty();
     }
@@ -65,7 +69,8 @@ class FileOperationServiceImplTest {
     // === copyToClipboard / getClipboardFiles ===
 
     @Test
-    void copyToClipboard_存储文件列表() {
+    @DisplayName("copyToClipboard: 存储文件列表")
+    void copyToClipboard_storesFileList() {
         File f1 = mock(File.class);
         File f2 = mock(File.class);
 
@@ -75,7 +80,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void getClipboardFiles_返回副本不影响内部状态() {
+    @DisplayName("getClipboardFiles: 返回副本不影响内部状态")
+    void getClipboardFiles_returnsCopyWithoutAffectingInternalState() {
         File f1 = mock(File.class);
         service.copyToClipboard(List.of(f1));
 
@@ -86,7 +92,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void copyToClipboard_覆盖之前的剪贴板内容() {
+    @DisplayName("copyToClipboard: 覆盖之前的剪贴板内容")
+    void copyToClipboard_overwritesPreviousClipboardContent() {
         File f1 = mock(File.class);
         File f2 = mock(File.class);
 
@@ -99,7 +106,8 @@ class FileOperationServiceImplTest {
     // === pasteFiles ===
 
     @Test
-    void pasteFiles_复制剪贴板文件到目标目录() {
+    @DisplayName("pasteFiles: 复制剪贴板文件到目标目录")
+    void pasteFiles_copiesClipboardFilesToTargetDirectory() {
         File src = mock(File.class);
         File dest = mock(File.class);
         File targetDir = mock(File.class);
@@ -113,7 +121,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void pasteFiles_剪贴板为空返回空列表() {
+    @DisplayName("pasteFiles: 剪贴板为空返回空列表")
+    void pasteFiles_emptyClipboardReturnsEmptyList() {
         File targetDir = mock(File.class);
 
         List<File> result = service.pasteFiles(targetDir);
@@ -123,7 +132,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void pasteFiles_目标目录为null返回空列表() {
+    @DisplayName("pasteFiles: 目标目录为null返回空列表")
+    void pasteFiles_nullTargetDirectoryReturnsEmptyList() {
         File src = mock(File.class);
         service.copyToClipboard(List.of(src));
 
@@ -133,7 +143,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void pasteFiles_复制失败的文件不加入结果() {
+    @DisplayName("pasteFiles: 复制失败的文件不加入结果")
+    void pasteFiles_failedCopyNotAddedToResult() {
         File src = mock(File.class);
         File targetDir = mock(File.class);
 
@@ -148,7 +159,8 @@ class FileOperationServiceImplTest {
     // === renameFile ===
 
     @Test
-    void renameFile_委托给Repository() {
+    @DisplayName("renameFile: 委托给Repository")
+    void renameFile_delegatesToRepository() {
         File file = mock(File.class);
         when(fileRepository.renameFile(file, "new.txt")).thenReturn(true);
 
@@ -159,7 +171,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void renameFile_重命名失败返回false() {
+    @DisplayName("renameFile: 重命名失败返回false")
+    void renameFile_failureReturnsFalse() {
         File file = mock(File.class);
         when(fileRepository.renameFile(file, "new.txt")).thenReturn(false);
 
@@ -171,7 +184,8 @@ class FileOperationServiceImplTest {
     // === calculateDirStats ===
 
     @Test
-    void calculateDirStats_计算图片数量和总大小() {
+    @DisplayName("calculateDirStats: 计算图片数量和总大小")
+    void calculateDirStats_calculatesImageCountAndTotalSize() {
         File img = mock(File.class);
         File txt = mock(File.class);
 
@@ -192,7 +206,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void calculateDirStats_null文件跳过() {
+    @DisplayName("calculateDirStats: null文件跳过")
+    void calculateDirStats_skipsNullFiles() {
         File img = mock(File.class);
         when(img.isFile()).thenReturn(true);
         when(img.exists()).thenReturn(true);
@@ -206,7 +221,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void calculateDirStats_不存在的文件跳过() {
+    @DisplayName("calculateDirStats: 不存在的文件跳过")
+    void calculateDirStats_skipsNonExistentFiles() {
         File file = mock(File.class);
         when(file.exists()).thenReturn(false);
 
@@ -217,7 +233,8 @@ class FileOperationServiceImplTest {
     }
 
     @Test
-    void calculateDirStats_空列表返回零() {
+    @DisplayName("calculateDirStats: 空列表返回零")
+    void calculateDirStats_emptyListReturnsZero() {
         long[] stats = service.calculateDirStats(List.of());
 
         assertThat(stats[0]).isEqualTo(0);

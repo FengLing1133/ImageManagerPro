@@ -18,7 +18,7 @@ import java.util.Deque;
 @Component
 public class RenderStrategyImpl implements RenderStrategy {
 
-    private static final int PROGRESSIVE_THRESHOLD = 600;
+    private static final int PROGRESSIVE_THRESHOLD = 50;
     private static final Insets CARD_MARGIN = new Insets(5);
 
     private Timeline buildTimeline;

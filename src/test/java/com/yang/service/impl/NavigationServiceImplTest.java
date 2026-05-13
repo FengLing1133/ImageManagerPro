@@ -1,6 +1,7 @@
 package com.yang.service.impl;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -33,30 +34,35 @@ class NavigationServiceImplTest {
     // === navigateTo ===
 
     @Test
-    void navigateTo_有效目录返回true() {
+    @DisplayName("navigateTo: 有效目录返回true")
+    void navigateTo_validDirectoryReturnsTrue() {
         assertThat(service.navigateTo(dirA)).isTrue();
         assertThat(service.getCurrentDirectory()).isEqualTo(dirA);
     }
 
     @Test
-    void navigateTo_null返回false() {
+    @DisplayName("navigateTo: null返回false")
+    void navigateTo_nullReturnsFalse() {
         assertThat(service.navigateTo(null)).isFalse();
     }
 
     @Test
-    void navigateTo_非目录返回false() {
+    @DisplayName("navigateTo: 非目录返回false")
+    void navigateTo_nonDirectoryReturnsFalse() {
         File file = new File(tempDir, "file.txt");
         assertThat(service.navigateTo(file)).isFalse();
     }
 
     @Test
-    void navigateTo_相同目录返回false() {
+    @DisplayName("navigateTo: 相同目录返回false")
+    void navigateTo_sameDirectoryReturnsFalse() {
         service.navigateTo(dirA);
         assertThat(service.navigateTo(dirA)).isFalse();
     }
 
     @Test
-    void navigateTo_将当前目录压入后退栈() {
+    @DisplayName("navigateTo: 将当前目录压入后退栈")
+    void navigateTo_pushesCurrentDirToBackStack() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
 
@@ -65,7 +71,8 @@ class NavigationServiceImplTest {
     }
 
     @Test
-    void navigateTo_清空前进栈() {
+    @DisplayName("navigateTo: 清空前进栈")
+    void navigateTo_clearsForwardStack() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
         service.goBack();
@@ -78,7 +85,8 @@ class NavigationServiceImplTest {
     // === goUp ===
 
     @Test
-    void goUp_返回父目录() {
+    @DisplayName("goUp: 返回父目录")
+    void goUp_returnsParentDirectory() {
         service.navigateTo(dirA);
         File parent = service.goUp();
 
@@ -87,12 +95,14 @@ class NavigationServiceImplTest {
     }
 
     @Test
-    void goUp_当前目录为null返回null() {
+    @DisplayName("goUp: 当前目录为null返回null")
+    void goUp_nullCurrentDirectoryReturnsNull() {
         assertThat(service.goUp()).isNull();
     }
 
     @Test
-    void goUp_将当前目录压入后退栈() {
+    @DisplayName("goUp: 将当前目录压入后退栈")
+    void goUp_pushesCurrentDirToBackStack() {
         service.navigateTo(dirA);
         service.goUp();
 
@@ -102,7 +112,8 @@ class NavigationServiceImplTest {
     // === goBack ===
 
     @Test
-    void goBack_返回上一个目录() {
+    @DisplayName("goBack: 返回上一个目录")
+    void goBack_returnsPreviousDirectory() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
 
@@ -113,12 +124,14 @@ class NavigationServiceImplTest {
     }
 
     @Test
-    void goBack_空栈返回null() {
+    @DisplayName("goBack: 空栈返回null")
+    void goBack_emptyStackReturnsNull() {
         assertThat(service.goBack()).isNull();
     }
 
     @Test
-    void goBack_将当前目录压入前进栈() {
+    @DisplayName("goBack: 将当前目录压入前进栈")
+    void goBack_pushesCurrentDirToForwardStack() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
         service.goBack();
@@ -130,7 +143,8 @@ class NavigationServiceImplTest {
     // === goForward ===
 
     @Test
-    void goForward_返回下一个目录() {
+    @DisplayName("goForward: 返回下一个目录")
+    void goForward_returnsNextDirectory() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
         service.goBack();
@@ -142,12 +156,14 @@ class NavigationServiceImplTest {
     }
 
     @Test
-    void goForward_空栈返回null() {
+    @DisplayName("goForward: 空栈返回null")
+    void goForward_emptyStackReturnsNull() {
         assertThat(service.goForward()).isNull();
     }
 
     @Test
-    void goForward_将当前目录压入后退栈() {
+    @DisplayName("goForward: 将当前目录压入后退栈")
+    void goForward_pushesCurrentDirToBackStack() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
         service.goBack();
@@ -159,20 +175,23 @@ class NavigationServiceImplTest {
     // === hasBackHistory / hasForwardHistory ===
 
     @Test
-    void 初始状态无历史() {
+    @DisplayName("初始状态: 无历史记录")
+    void initialState_noHistory() {
         assertThat(service.hasBackHistory()).isFalse();
         assertThat(service.hasForwardHistory()).isFalse();
     }
 
     @Test
-    void hasBackHistory_导航后有历史() {
+    @DisplayName("hasBackHistory: 导航后有历史")
+    void hasBackHistory_afterNavigationReturnsTrue() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
         assertThat(service.hasBackHistory()).isTrue();
     }
 
     @Test
-    void hasForwardHistory_后退后有历史() {
+    @DisplayName("hasForwardHistory: 后退后有历史")
+    void hasForwardHistory_afterGoBackReturnsTrue() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
         service.goBack();
@@ -182,7 +201,8 @@ class NavigationServiceImplTest {
     // === undoNavigation ===
 
     @Test
-    void undoNavigation_弹出后退栈顶部() {
+    @DisplayName("undoNavigation: 弹出后退栈顶部")
+    void undoNavigation_popsBackStackTop() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
 
@@ -192,14 +212,16 @@ class NavigationServiceImplTest {
     }
 
     @Test
-    void undoNavigation_空栈返回null() {
+    @DisplayName("undoNavigation: 空栈返回null")
+    void undoNavigation_emptyStackReturnsNull() {
         assertThat(service.undoNavigation()).isNull();
     }
 
     // === setCurrentDirectory ===
 
     @Test
-    void setCurrentDirectory_直接设置不记录历史() {
+    @DisplayName("setCurrentDirectory: 直接设置不记录历史")
+    void setCurrentDirectory_setsWithoutRecordingHistory() {
         service.setCurrentDirectory(dirA);
 
         assertThat(service.getCurrentDirectory()).isEqualTo(dirA);
@@ -209,7 +231,8 @@ class NavigationServiceImplTest {
     // === clearHistory ===
 
     @Test
-    void clearHistory_清空所有历史() {
+    @DisplayName("clearHistory: 清空所有历史")
+    void clearHistory_clearsAllHistory() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
         service.goBack();
@@ -223,30 +246,35 @@ class NavigationServiceImplTest {
     // === resolvePath ===
 
     @Test
-    void resolvePath_有效目录返回File() {
+    @DisplayName("resolvePath: 有效目录返回File")
+    void resolvePath_validDirectoryReturnsFile() {
         File result = service.resolvePath(tempDir.getAbsolutePath());
 
         assertThat(result).isEqualTo(tempDir);
     }
 
     @Test
-    void resolvePath_null返回null() {
+    @DisplayName("resolvePath: null返回null")
+    void resolvePath_nullReturnsNull() {
         assertThat(service.resolvePath(null)).isNull();
     }
 
     @Test
-    void resolvePath_空字符串返回null() {
+    @DisplayName("resolvePath: 空字符串返回null")
+    void resolvePath_emptyStringReturnsNull() {
         assertThat(service.resolvePath("")).isNull();
         assertThat(service.resolvePath("   ")).isNull();
     }
 
     @Test
-    void resolvePath_不存在的路径返回null() {
+    @DisplayName("resolvePath: 不存在的路径返回null")
+    void resolvePath_nonExistentPathReturnsNull() {
         assertThat(service.resolvePath("/nonexistent/path")).isNull();
     }
 
     @Test
-    void resolvePath_文件路径返回null() throws Exception {
+    @DisplayName("resolvePath: 文件路径返回null")
+    void resolvePath_filePathReturnsNull() throws Exception {
         File file = new File(tempDir, "file.txt");
         file.createNewFile();
         assertThat(service.resolvePath(file.getAbsolutePath())).isNull();
@@ -255,7 +283,8 @@ class NavigationServiceImplTest {
     // === 综合场景 ===
 
     @Test
-    void 综合_多次导航后退前进() {
+    @DisplayName("综合场景: 多次导航后退前进")
+    void integration_multipleNavigateBackForward() {
         service.navigateTo(dirA);
         service.navigateTo(dirB);
         service.navigateTo(dirC);

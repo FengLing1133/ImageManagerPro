@@ -137,22 +137,38 @@ public class SlideShowController {
                 );
                 return;
             }
-            Image image = new Image(imageFile.toURI().toString(), false); // 加载图片
-            if (image.isError()) { // 解码失败
-                AlterUtil.showAlert(
-                    Alert.AlertType.ERROR,
-                    "图片加载失败",
-                    "解码错误：" + imagePath,
-                    stackPane != null && stackPane.getScene() != null ? stackPane.getScene().getWindow() : null
-                );
-                if (image.getException() != null) {
-                    image.getException().printStackTrace();
+            // 异步加载全分辨率图片，避免大图片阻塞 UI 线程
+            Image image = new Image(imageFile.toURI().toString(), true);
+            image.progressProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal.doubleValue() >= 1.0) {
+                    if (image.isError()) {
+                        AlterUtil.showAlert(
+                            Alert.AlertType.ERROR,
+                            "图片加载失败",
+                            "解码错误：" + imagePath,
+                            stackPane != null && stackPane.getScene() != null ? stackPane.getScene().getWindow() : null
+                        );
+                        if (image.getException() != null) {
+                            image.getException().printStackTrace();
+                        }
+                    } else {
+                        slideImageView.setImage(image);
+                        zoomScale = 1.0;
+                        fitImageToWindow();
+                    }
                 }
-                return;
-            }
-            slideImageView.setImage(image);
-            zoomScale = 1.0;
-            fitImageToWindow(); // 这里会重置平移
+            });
+            image.exceptionProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null) {
+                    AlterUtil.showAlert(
+                        Alert.AlertType.ERROR,
+                        "图片加载失败",
+                        "加载图片失败：" + imagePath,
+                        stackPane != null && stackPane.getScene() != null ? stackPane.getScene().getWindow() : null
+                    );
+                    newVal.printStackTrace();
+                }
+            });
         } catch (Exception e) {
             AlterUtil.showAlert(
                 Alert.AlertType.ERROR,
