@@ -60,11 +60,6 @@ public interface NavigationService {
     void setCurrentDirectory(File dir);
 
     /**
-     * 历史栈是否有可撤销的操作
-     */
-    boolean hasHistory();
-
-    /**
      * 清空导航历史
      */
     void clearHistory();

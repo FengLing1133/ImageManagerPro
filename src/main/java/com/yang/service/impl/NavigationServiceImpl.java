@@ -73,11 +73,6 @@ public class NavigationServiceImpl implements NavigationService {
     }
 
     @Override
-    public boolean hasHistory() {
-        return !backStack.isEmpty();
-    }
-
-    @Override
     public boolean hasBackHistory() {
         return !backStack.isEmpty();
     }

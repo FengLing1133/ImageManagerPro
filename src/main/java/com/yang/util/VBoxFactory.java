@@ -21,6 +21,11 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 public class VBoxFactory {
+
+    // 右键菜单构建器接口
+    public interface ContextMenuBuilder {
+        ContextMenu build();
+    }
     private static final int FILE_NAME_MAX_LENGTH = 18; // 文件名最大显示长度（含省略号）
     private static final Insets CARD_PADDING = new Insets(5);
     private static final Image FOLDER_ICON = loadIcon("/icons/folder.png");
@@ -101,11 +106,24 @@ public class VBoxFactory {
             Set<VBox> selectedVBoxes,
             Map<VBox, File> vBoxToFile,
             Runnable updateTipLabel,
-            Runnable onDoubleClickImage
+            Runnable onDoubleClickImage,
+            ContextMenuBuilder contextMenuBuilder
     ) {
         ImageView imageView = new ImageView(image);
         VBox vBox = createBaseVBox(imageView, file.getName(), thumbSize, normalStyle);
         setupImageVBox(vBox, normalStyle, selectedStyle, selectedVBoxes, updateTipLabel, onDoubleClickImage);
+        if (contextMenuBuilder != null) {
+            vBox.setOnContextMenuRequested(event -> {
+                Object old = vBox.getUserData();
+                if (old instanceof ContextMenu && ((ContextMenu) old).isShowing()) {
+                    ((ContextMenu) old).hide();
+                }
+                ContextMenu menu = contextMenuBuilder.build();
+                vBox.setUserData(menu);
+                menu.show(vBox, event.getScreenX(), event.getScreenY());
+                event.consume();
+            });
+        }
         vBoxToFile.put(vBox, file);
         callback.accept(vBox);
     }
@@ -122,19 +140,20 @@ public class VBoxFactory {
             Map<VBox, File> vBoxToFile,
             Runnable updateTipLabel,
             Runnable onDoubleClickImage,
-            com.yang.service.ImageService imageService
+            com.yang.service.ImageService imageService,
+            ContextMenuBuilder contextMenuBuilder
     ) {
         String filePath = file.getAbsolutePath();
         Image cached = imageService.getCachedImage(filePath);
         if (cached != null) {
-            createImageVBox(file, cached, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage);
+            createImageVBox(file, cached, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage, contextMenuBuilder);
             return;
         }
         imageExecutor.submit(() -> {
             try {
                 Image img = imageService.loadThumbnail(file, thumbSize);
                 if (img != null) {
-                    Platform.runLater(() -> createImageVBox(file, img, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage));
+                    Platform.runLater(() -> createImageVBox(file, img, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage, contextMenuBuilder));
                 }
             } catch (Exception e) {
                 System.out.println("⚠️ 图片加载失败：" + file.getName());
@@ -188,7 +207,10 @@ public class VBoxFactory {
                 }
             }
             if (updateTipLabel != null) updateTipLabel.run();
-            event.consume();
+            // 右键不 consume，让 ContextMenuRequested 事件能触发
+            if (event.getButton() == MouseButton.PRIMARY) {
+                event.consume();
+            }
         });
     }
 

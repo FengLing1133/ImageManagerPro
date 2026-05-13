@@ -350,7 +350,8 @@ public class MainController {
                 selectedVBoxes, vBoxToFile,
                 this::updateTipLabel,
                 () -> openSlideShowForImage(file),
-                imageService
+                imageService,
+                () -> vBoxFactory.buildContextMenu(selectedVBoxes.size(), this::deleteSelected, this::copySelected, this::renameSelected, this::pasteFiles)
         );
     }
 
@@ -406,7 +407,9 @@ public class MainController {
     public void onBack() {
         File prev = navigationService.goBack();
         if (prev != null) {
-            navigateToDirectory(prev, true);
+            pathField.setText(prev.getAbsolutePath());
+            loadImagesToFlowPane(prev);
+            directoryTreeService.expandAndSelectInTree(prev.getAbsolutePath());
         }
     }
 
@@ -414,7 +417,9 @@ public class MainController {
     public void onForward() {
         File next = navigationService.goForward();
         if (next != null) {
-            navigateToDirectory(next, true);
+            pathField.setText(next.getAbsolutePath());
+            loadImagesToFlowPane(next);
+            directoryTreeService.expandAndSelectInTree(next.getAbsolutePath());
         }
     }
 
