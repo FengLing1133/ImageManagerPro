@@ -383,7 +383,7 @@ public class MainController {
 
     @FXML
     private void openSlideShow() {
-        List<String> imagePaths = imageService.getImagePaths(navigationService.getCurrentDirectory());
+        List<String> imagePaths = collectImagePathsFromLoadedFiles();
         if (imagePaths.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "未选择目录", "请先在左侧选择包含图片的文件夹");
             return;
@@ -407,36 +407,17 @@ public class MainController {
 
     @FXML
     public void onBack() {
-        File currentDir = navigationService.getCurrentDirectory();
-        if (currentDir == null) return;
-        File parent = navigationService.goUp();
-        if (parent != null) {
-            navigateToDirectory(parent, true);
-        } else {
-            activeLoadToken++;
-            renderStrategy.stopAll();
-            navigationService.setCurrentDirectory(null);
-            allFiles.clear();
-            clearSelection();
-            Platform.runLater(() -> {
-                imageFlowPane.getChildren().clear();
-                initFlowPaneHint();
-                pathField.setText("");
-                cachedImageCount = 0;
-                cachedTotalSize = 0;
-                updateTipLabel();
-            });
-            dirTreeView.getSelectionModel().clearSelection();
+        File prev = navigationService.goBack();
+        if (prev != null) {
+            navigateToDirectory(prev, true);
         }
     }
 
     @FXML
-    public void onUndo() {
-        File prev = navigationService.undoNavigation();
-        if (prev != null) {
-            navigateToDirectory(prev, true);
-        } else {
-            showAlert(Alert.AlertType.INFORMATION, "提示", "无可撤销的操作");
+    public void onForward() {
+        File next = navigationService.goForward();
+        if (next != null) {
+            navigateToDirectory(next, true);
         }
     }
 
@@ -472,13 +453,24 @@ public class MainController {
     }
 
     private void openSlideShowForImage(File imageFile) {
-        List<String> imagePaths = imageService.getImagePaths(navigationService.getCurrentDirectory());
+        List<String> imagePaths = collectImagePathsFromLoadedFiles();
         if (imagePaths.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "未找到图片", "当前目录中没有可播放的图片");
             return;
         }
         int index = imagePaths.indexOf(imageFile.getAbsolutePath());
         showSlideShowWindow(imagePaths, Math.max(index, 0));
+    }
+
+    private List<String> collectImagePathsFromLoadedFiles() {
+        List<String> imagePaths = new ArrayList<>();
+        for (File file : allFiles) {
+            if (file.isFile() && imageService.isImageFile(file)) {
+                imagePaths.add(file.getAbsolutePath());
+            }
+        }
+        imagePaths.sort(String::compareToIgnoreCase);
+        return imagePaths;
     }
 
     private void showSlideShowWindow(List<String> imagePaths, int startIndex) {

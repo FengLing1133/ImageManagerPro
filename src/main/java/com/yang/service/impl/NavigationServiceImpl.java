@@ -12,15 +12,17 @@ import java.util.Stack;
 public class NavigationServiceImpl implements NavigationService {
 
     private File currentDirectory;
-    private final Stack<File> historyStack = new Stack<>();
+    private final Stack<File> backStack = new Stack<>();
+    private final Stack<File> forwardStack = new Stack<>();
 
     @Override
     public boolean navigateTo(File dir) {
         if (dir == null || !dir.isDirectory()) return false;
         if (dir.equals(currentDirectory)) return false;
         if (currentDirectory != null) {
-            historyStack.push(currentDirectory);
+            backStack.push(currentDirectory);
         }
+        forwardStack.clear();
         currentDirectory = dir;
         return true;
     }
@@ -30,16 +32,33 @@ public class NavigationServiceImpl implements NavigationService {
         if (currentDirectory == null) return null;
         File parent = currentDirectory.getParentFile();
         if (parent != null) {
-            historyStack.push(currentDirectory);
+            backStack.push(currentDirectory);
+            forwardStack.clear();
             currentDirectory = parent;
         }
         return parent;
     }
 
     @Override
+    public File goBack() {
+        if (backStack.isEmpty()) return null;
+        forwardStack.push(currentDirectory);
+        currentDirectory = backStack.pop();
+        return currentDirectory;
+    }
+
+    @Override
+    public File goForward() {
+        if (forwardStack.isEmpty()) return null;
+        backStack.push(currentDirectory);
+        currentDirectory = forwardStack.pop();
+        return currentDirectory;
+    }
+
+    @Override
     public File undoNavigation() {
-        if (historyStack.isEmpty()) return null;
-        currentDirectory = historyStack.pop();
+        if (backStack.isEmpty()) return null;
+        currentDirectory = backStack.pop();
         return currentDirectory;
     }
 
@@ -55,12 +74,23 @@ public class NavigationServiceImpl implements NavigationService {
 
     @Override
     public boolean hasHistory() {
-        return !historyStack.isEmpty();
+        return !backStack.isEmpty();
+    }
+
+    @Override
+    public boolean hasBackHistory() {
+        return !backStack.isEmpty();
+    }
+
+    @Override
+    public boolean hasForwardHistory() {
+        return !forwardStack.isEmpty();
     }
 
     @Override
     public void clearHistory() {
-        historyStack.clear();
+        backStack.clear();
+        forwardStack.clear();
     }
 
     @Override

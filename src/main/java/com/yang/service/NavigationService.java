@@ -22,6 +22,28 @@ public interface NavigationService {
     File goUp();
 
     /**
+     * 后退（从后退栈弹出，当前目录压入前进栈）
+     * @return 上一个目录，如果后退栈为空返回 null
+     */
+    File goBack();
+
+    /**
+     * 前进（从前进栈弹出，当前目录压入后退栈）
+     * @return 下一个目录，如果前进栈为空返回 null
+     */
+    File goForward();
+
+    /**
+     * 后退栈是否有历史
+     */
+    boolean hasBackHistory();
+
+    /**
+     * 前进栈是否有历史
+     */
+    boolean hasForwardHistory();
+
+    /**
      * 撤销返回（从历史栈弹出）
      * @return 上一个目录，如果历史为空返回 null
      */
