@@ -25,7 +25,6 @@ import java.util.function.Consumer;
 
 /**
  * 主窗口控制器 —— 应用的核心控制器
- *
  * <p>职责概览：</p>
  * <ul>
  *   <li>管理左侧目录树与右侧文件卡片面板的联动</li>
@@ -216,7 +215,6 @@ public class MainController {
 
     /**
      * 配置目录树的单元格工厂。
-     * 
      * <p>功能：</p>
      * <ul>
      *   <li>根据节点类型显示不同图标（"我的电脑"无图标、磁盘显示硬盘图标、文件夹显示文件夹图标）</li>
@@ -287,7 +285,6 @@ public class MainController {
 
     /**
      * 导航到指定目录的核心方法。
-     *
      * @param dir               目标目录
      * @param syncTreeSelection 是否同步更新左侧目录树的选中状态（从路径输入框或面包屑导航时需要同步）
      */
@@ -304,7 +301,6 @@ public class MainController {
 
     /**
      * 配置路径输入框的回车跳转逻辑。
-     * 
      * <p>行为：</p>
      * <ul>
      *   <li>初始化时显示当前目录路径</li>
@@ -337,7 +333,6 @@ public class MainController {
 
     /**
      * 加载指定目录下的所有文件到 FlowPane（核心加载方法）。
-     *
      * <p>执行流程：</p>
      * <ol>
      *   <li>递增 loadToken，使之前的异步回调全部失效（防竞态）</li>
@@ -590,7 +585,6 @@ public class MainController {
     /**
      * 创建快捷方式 VBox 卡片。
      * 点击后导航到目标目录，并同步更新左侧目录树的选中状态。
-     *
      * @param targetDir   目标目录
      * @param displayName 显示名称（如"本地磁盘 (C:)"或"我的图片"）
      */
@@ -709,7 +703,6 @@ public class MainController {
     /**
      * 创建并显示幻灯片播放窗口。
      * 加载 slideShow.fxml，设置图片列表和起始索引，以模态窗口方式打开。
-     *
      * @param imagePaths 图片文件路径列表
      * @param startIndex 起始播放的图片索引
      */
