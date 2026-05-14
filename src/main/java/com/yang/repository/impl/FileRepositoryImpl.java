@@ -7,10 +7,7 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * 文件系统数据访问层实现
- * 封装所有文件系统读写操作
- */
+/** 文件系统数据访问层，封装文件列出、删除、重命名、复制等操作 */
 @Repository
 public class FileRepositoryImpl implements FileRepository {
 
@@ -18,10 +15,12 @@ public class FileRepositoryImpl implements FileRepository {
             ".jpg", ".jpeg", ".png", ".gif", ".bmp"
     );
 
+    /** 列出目录下可见文件，目录优先，同类型按名称排序 */
     @Override
     public List<File> listVisibleFiles(File directory) {
         File[] files = directory.listFiles();
         if (files == null) return Collections.emptyList();
+
         return Arrays.stream(files)
                 .filter(this::isVisibleFile)
                 .sorted((f1, f2) -> {
@@ -37,12 +36,14 @@ public class FileRepositoryImpl implements FileRepository {
         return file.delete();
     }
 
+    /** 重命名文件，newNameWithExt 为包含扩展名的新名称 */
     @Override
     public boolean renameFile(File file, String newNameWithExt) {
         File newFile = new File(file.getParent(), newNameWithExt);
         return file.renameTo(newFile);
     }
 
+    /** 复制文件到目标目录，重名时自动追加数字后缀 (1)(2)... */
     @Override
     public File copyFileTo(File src, File destDir) {
         try {
@@ -65,6 +66,7 @@ public class FileRepositoryImpl implements FileRepository {
         }
     }
 
+    /** 根据扩展名判断是否为图片文件 */
     @Override
     public boolean isImageFile(File file) {
         if (!file.isFile()) return false;
@@ -72,11 +74,13 @@ public class FileRepositoryImpl implements FileRepository {
         return IMAGE_EXTENSIONS.stream().anyMatch(lower::endsWith);
     }
 
+    /** 非隐藏且文件名不以点开头 */
     @Override
     public boolean isVisibleFile(File file) {
         return !file.isHidden() && !file.getName().startsWith(".");
     }
 
+    /** 将字节大小格式化为可读字符串（KB/MB/GB...） */
     @Override
     public String formatSize(long bytes) {
         if (bytes < 1024) return bytes + " B";
@@ -85,16 +89,17 @@ public class FileRepositoryImpl implements FileRepository {
         return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
     }
 
+    /** 获取目录下所有图片文件的绝对路径（已排序） */
     @Override
     public List<String> getImagePaths(File directory) {
         File[] files = directory.listFiles();
         if (files == null) return Collections.emptyList();
-        List<String> paths = Arrays.stream(files)
+
+        return Arrays.stream(files)
                 .filter(File::isFile)
                 .filter(this::isImageFile)
                 .map(File::getAbsolutePath)
                 .sorted()
                 .collect(Collectors.toList());
-        return paths;
     }
 }

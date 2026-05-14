@@ -5,16 +5,17 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.util.Stack;
 
-/**
- * 导航服务业务逻辑层实现
- */
+/** 导航服务业务逻辑层实现 */
 @Service
 public class NavigationServiceImpl implements NavigationService {
 
     private File currentDirectory;
+    /** 后退历史栈 */
     private final Stack<File> backStack = new Stack<>();
+    /** 前进历史栈 */
     private final Stack<File> forwardStack = new Stack<>();
 
+    /** 导航到指定目录，将当前目录压入后退栈并清空前进栈 */
     @Override
     public boolean navigateTo(File dir) {
         if (dir == null || !dir.isDirectory()) return false;
@@ -27,6 +28,7 @@ public class NavigationServiceImpl implements NavigationService {
         return true;
     }
 
+    /** 返回上级目录 */
     @Override
     public File goUp() {
         if (currentDirectory == null) return null;
@@ -39,6 +41,7 @@ public class NavigationServiceImpl implements NavigationService {
         return parent;
     }
 
+    /** 后退：当前目录压入前进栈，从后退栈弹出恢复 */
     @Override
     public File goBack() {
         if (backStack.isEmpty()) return null;
@@ -47,6 +50,7 @@ public class NavigationServiceImpl implements NavigationService {
         return currentDirectory;
     }
 
+    /** 前进：当前目录压入后退栈，从前进栈弹出恢复 */
     @Override
     public File goForward() {
         if (forwardStack.isEmpty()) return null;
@@ -65,22 +69,34 @@ public class NavigationServiceImpl implements NavigationService {
         this.currentDirectory = dir;
     }
 
+    /** 是否有后退历史 */
     @Override
     public boolean hasBackHistory() {
         return !backStack.isEmpty();
     }
 
+    /** 是否有前进历史 */
     @Override
     public boolean hasForwardHistory() {
         return !forwardStack.isEmpty();
     }
 
+    /** 清空所有导航历史 */
     @Override
     public void clearHistory() {
         backStack.clear();
         forwardStack.clear();
     }
 
+    /** 将目录压入后退栈（用于快捷方式跳转时保存历史） */
+    @Override
+    public void pushBackStack(File dir) {
+        if (dir != null && dir.isDirectory()) {
+            backStack.push(dir);
+        }
+    }
+
+    /** 解析路径字符串为有效的目录 File，无效则返回 null */
     @Override
     public File resolvePath(String path) {
         if (path == null || path.trim().isEmpty()) return null;

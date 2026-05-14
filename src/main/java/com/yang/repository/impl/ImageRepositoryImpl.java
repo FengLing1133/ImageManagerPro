@@ -8,15 +8,13 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * 图片数据访问层实现
- * 封装图片加载、缩略图生成和 LRU 缓存管理
- */
+/** 图片数据访问层，封装图片加载和 LRU 缓存管理 */
 @Repository
 public class ImageRepositoryImpl implements ImageRepository {
 
     private static final int CACHE_MAX_SIZE = 500;
 
+    /** 线程安全的 LRU 缓存，超过容量自动淘汰最久未访问的条目 */
     private final Map<String, Image> imageCache = Collections.synchronizedMap(
             new LinkedHashMap<>(100, 0.75f, true) {
                 @Override
@@ -25,6 +23,7 @@ public class ImageRepositoryImpl implements ImageRepository {
                 }
             });
 
+    /** 3 线程的守护线程池，用于异步加载缩略图 */
     private final ExecutorService imageExecutor = Executors.newFixedThreadPool(3, runnable -> {
         Thread thread = new Thread(runnable);
         thread.setDaemon(true);
@@ -32,6 +31,7 @@ public class ImageRepositoryImpl implements ImageRepository {
         return thread;
     });
 
+    /** 加载缩略图，优先从缓存获取 */
     @Override
     public Image loadThumbnail(File file, int thumbSize) {
         String filePath = file.getAbsolutePath();
@@ -45,11 +45,11 @@ public class ImageRepositoryImpl implements ImageRepository {
                 return img;
             }
         } catch (Exception e) {
-            // 加载失败返回 null
         }
         return null;
     }
 
+    /** 加载完整尺寸图片（幻灯片用），不缓存 */
     @Override
     public Image loadFullImage(File file) {
         try {
@@ -58,7 +58,6 @@ public class ImageRepositoryImpl implements ImageRepository {
                 return image;
             }
         } catch (Exception e) {
-            // 加载失败返回 null
         }
         return null;
     }
@@ -87,5 +86,4 @@ public class ImageRepositoryImpl implements ImageRepository {
     public void shutdown() {
         imageExecutor.shutdown();
     }
-
 }

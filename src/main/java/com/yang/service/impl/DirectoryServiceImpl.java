@@ -10,14 +10,16 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * 目录服务业务逻辑层实现
- */
+/** 目录服务，负责子目录列表获取、系统根目录和用户图片目录 */
 @Service
 public class DirectoryServiceImpl implements DirectoryService {
 
+    /** 需要过滤的系统目录名称 */
     private static final Set<String> SYSTEM_DIRS = Set.of(
-            "System Volume Information", "$Recycle.Bin", "Windows", "Program Files"
+            "System Volume Information",
+            "$Recycle.Bin",
+            "Windows",
+            "Program Files"
     );
 
     private final FileRepository fileRepository;
@@ -26,6 +28,7 @@ public class DirectoryServiceImpl implements DirectoryService {
         this.fileRepository = fileRepository;
     }
 
+    /** 获取子目录列表，过滤系统目录，按名称排序 */
     @Override
     public List<File> listChildDirectories(File parent) {
         File[] children = parent.listFiles(File::isDirectory);
@@ -36,12 +39,14 @@ public class DirectoryServiceImpl implements DirectoryService {
                 .collect(Collectors.toList());
     }
 
+    /** 获取系统根目录（盘符）列表 */
     @Override
     public File[] getSystemRoots() {
         File[] roots = File.listRoots();
         return roots != null ? roots : new File[0];
     }
 
+    /** 获取用户图片目录（~/Pictures），不存在则返回 null */
     @Override
     public File getPicturesDirectory() {
         String userHome = System.getProperty("user.home");
@@ -52,6 +57,7 @@ public class DirectoryServiceImpl implements DirectoryService {
         return null;
     }
 
+    /** 系统目录或隐藏目录均视为系统目录 */
     @Override
     public boolean isSystemDirectory(File dir) {
         return SYSTEM_DIRS.contains(dir.getName()) || dir.isHidden();

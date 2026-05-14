@@ -15,142 +15,145 @@ import java.util.List;
 import com.yang.util.AlterUtil;
 import javafx.scene.control.Alert;
 
+/**
+ * 幻灯片播放控制器
+ * <p>
+ * 提供图片幻灯片播放功能，支持：
+ * - 图片浏览（上一张/下一张）
+ * - 自动播放（定时切换）
+ * - 鼠标滚轮缩放
+ * - 鼠标拖拽平移
+ * - 自适应窗口大小
+ * </p>
+ */
 @Component
 public class SlideShowController {
 
-    @FXML
-    private ImageView slideImageView; // 显示图片的控件
-    @FXML
-    private Label pageLabel; // 显示页码的标签
-    @FXML
-    private StackPane stackPane; // 图片容器
+    @FXML private ImageView slideImageView;
+    @FXML private Label pageLabel;
+    @FXML private StackPane stackPane;
 
-    private List<String> imagePaths; // 图片路径列表
-    private int currentIndex = 0; // 当前图片索引
-    private double baseScale = 1.0; // 基础缩放比例
-    private double zoomScale = 1.0; // 当前缩放比例
-    private Timeline playTimeline; // 播放定时器
-    private double dragStartX = 0; // 拖拽起始X
-    private double dragStartY = 0; // 拖拽起始Y
-    private double imageStartTranslateX = 0; // 拖拽起始图片X
-    private double imageStartTranslateY = 0; // 拖拽起始图片Y
+    private List<String> imagePaths;    // 图片路径列表
+    private int currentIndex = 0;       // 当前显示的图片索引
+    private double baseScale = 1.0;     // 自适应窗口的基础缩放比
+    private double zoomScale = 1.0;     // 用户手动缩放倍率
+    private Timeline playTimeline;      // 自动播放定时器
 
+    // 拖拽平移相关状态
+    private double dragStartX = 0;
+    private double dragStartY = 0;
+    private double imageStartTranslateX = 0;
+    private double imageStartTranslateY = 0;
+
+    /** 由 FXMLLoader 自动调用，初始化控件配置、事件绑定和自动播放定时器 */
     @FXML
     public void initialize() {
-        slideImageView.setPreserveRatio(true); // 保持宽高比
-        slideImageView.setSmooth(true); // 平滑处理
-        slideImageView.setCache(false); // 不使用缓存
+        slideImageView.setPreserveRatio(true);
+        slideImageView.setSmooth(true);
+        slideImageView.setCache(false);
 
-        playTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> nextImage())); // 1秒切换图片
-        playTimeline.setCycleCount(Timeline.INDEFINITE); // 无限循环
+        playTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> nextImage()));
+        playTimeline.setCycleCount(Timeline.INDEFINITE);
 
-        // 监听stackPane尺寸变化，自动适应图片
         stackPane.widthProperty().addListener((obs, oldVal, newVal) -> fitImageToWindow());
         stackPane.heightProperty().addListener((obs, oldVal, newVal) -> fitImageToWindow());
 
-        stackPane.setOnScroll(event -> { // 鼠标滚轮缩放
+        // 滚轮缩放：上滚放大，下滚缩小，范围 [0.1, 10.0]
+        stackPane.setOnScroll(event -> {
             if (slideImageView.getImage() == null) return;
             double delta = event.getDeltaY();
             if (delta > 0) {
-                zoomScale = Math.min(zoomScale * 1.05, 10.0); // 放大
+                zoomScale = Math.min(zoomScale * 1.05, 10.0);
             } else {
-                zoomScale = Math.max(zoomScale / 1.05, 0.1); // 缩小
+                zoomScale = Math.max(zoomScale / 1.05, 0.1);
             }
             double finalScale = baseScale * zoomScale;
             slideImageView.setFitWidth(slideImageView.getImage().getWidth() * finalScale);
             slideImageView.setFitHeight(slideImageView.getImage().getHeight() * finalScale);
-            // 缩放时不重置平移
         });
 
-        // 鼠标拖拽平移支持
-        stackPane.setOnMousePressed(event -> { // 按下记录起点
+        // 鼠标拖拽平移
+        stackPane.setOnMousePressed(event -> {
             if (slideImageView.getImage() == null) return;
-            dragStartX = event.getSceneX();// 记录鼠标起始位置
+            dragStartX = event.getSceneX();
             dragStartY = event.getSceneY();
-            imageStartTranslateX = slideImageView.getTranslateX();// 记录图片当前平移位置
+            imageStartTranslateX = slideImageView.getTranslateX();
             imageStartTranslateY = slideImageView.getTranslateY();
         });
-        stackPane.setOnMouseDragged(event -> { // 拖动时平移图片
+        stackPane.setOnMouseDragged(event -> {
             if (slideImageView.getImage() == null) return;
-            double offsetX = event.getSceneX() - dragStartX;// 计算鼠标偏移
-            double offsetY = event.getSceneY() - dragStartY;
-            slideImageView.setTranslateX(imageStartTranslateX + offsetX);// 更新图片平移位置
-            slideImageView.setTranslateY(imageStartTranslateY + offsetY);
+            slideImageView.setTranslateX(imageStartTranslateX + event.getSceneX() - dragStartX);
+            slideImageView.setTranslateY(imageStartTranslateY + event.getSceneY() - dragStartY);
         });
     }
 
+    /** 将图片自适应窗口大小，只缩小不放大，同时重置缩放和平移状态 */
     private void fitImageToWindow() {
         Image image = slideImageView.getImage();
         if (image == null) return;
 
-        double windowWidth = stackPane.getWidth();// 获取容器尺寸
+        double windowWidth = stackPane.getWidth();
         double windowHeight = stackPane.getHeight();
         if (windowWidth <= 0 || windowHeight <= 0) return;
 
-        double padding = 40.0; // 边距
-        double availableWidth = Math.max(windowWidth - padding, 1.0);// 可用宽度，至少1像素
-        double availableHeight = Math.max(windowHeight - padding, 1.0);// 可用高度，至少1像素
+        double padding = 40.0;
+        double availableWidth = Math.max(windowWidth - padding, 1.0);
+        double availableHeight = Math.max(windowHeight - padding, 1.0);
 
         double imgWidth = image.getWidth();
         double imgHeight = image.getHeight();
 
-        double scale = Math.min(1.0, Math.min(availableWidth / imgWidth, availableHeight / imgHeight)); // 只缩小不放大
+        // 只缩小不放大，取宽高方向较小的缩放比
+        double scale = Math.min(1.0, Math.min(availableWidth / imgWidth, availableHeight / imgHeight));
         baseScale = scale;
         zoomScale = 1.0;
 
-        slideImageView.setFitWidth(imgWidth * scale);// 设置适应宽度
+        slideImageView.setFitWidth(imgWidth * scale);
         slideImageView.setFitHeight(imgHeight * scale);
-        slideImageView.setTranslateX(0); // 重置平移
+        slideImageView.setTranslateX(0);
         slideImageView.setTranslateY(0);
     }
 
-    public void setImagePaths(List<String> imagePaths) {// 设置图片路径列表
-        this.imagePaths = imagePaths == null ? null : new ArrayList<>(imagePaths); // 复制路径
+    /** 设置图片路径列表，自动重置到第一张并显示 */
+    public void setImagePaths(List<String> imagePaths) {
+        this.imagePaths = imagePaths == null ? null : new ArrayList<>(imagePaths);
         this.currentIndex = 0;
         if (this.imagePaths != null && !this.imagePaths.isEmpty()) {
-            pageLabel.setText((currentIndex + 1) + "/" + this.imagePaths.size()); // 显示页码
-            loadImage(this.imagePaths.get(currentIndex)); // 加载首图
+            pageLabel.setText((currentIndex + 1) + "/" + this.imagePaths.size());
+            loadImage(this.imagePaths.get(currentIndex));
         } else {
             pageLabel.setText("0/0");
             slideImageView.setImage(null);
         }
     }
 
-    public void setCurrentIndex(int index) {// 设置当前图片索引
-        if (imagePaths == null || imagePaths.isEmpty()) {
-            return;
-        }
-        this.currentIndex = Math.max(0, Math.min(index, imagePaths.size() - 1)); // 边界保护
+    /** 设置当前图片索引，自动边界保护 */
+    public void setCurrentIndex(int index) {
+        if (imagePaths == null || imagePaths.isEmpty()) return;
+        this.currentIndex = Math.max(0, Math.min(index, imagePaths.size() - 1));
         loadImage(imagePaths.get(currentIndex));
         pageLabel.setText((currentIndex + 1) + "/" + imagePaths.size());
     }
 
+    /** 异步加载图片，加载成功后自适应窗口，失败时弹出错误提示 */
     private void loadImage(String imagePath) {
         try {
             File imageFile = new File(imagePath);
-            if (!imageFile.exists() || !imageFile.isFile()) { // 文件不存在
-                AlterUtil.showAlert(
-                    Alert.AlertType.ERROR,
-                    "图片加载失败",
-                    "文件不存在：" + imagePath,
-                    stackPane != null && stackPane.getScene() != null ? stackPane.getScene().getWindow() : null
-                );
+            if (!imageFile.exists() || !imageFile.isFile()) {
+                AlterUtil.showAlert(Alert.AlertType.ERROR, "图片加载失败",
+                        "文件不存在：" + imagePath, getWindow());
                 return;
             }
-            // 异步加载全分辨率图片，避免大图片阻塞 UI 线程
+
+            // 异步加载，避免阻塞 UI 线程
             Image image = new Image(imageFile.toURI().toString(), true);
+
             image.progressProperty().addListener((obs, oldVal, newVal) -> {
                 if (newVal.doubleValue() >= 1.0) {
                     if (image.isError()) {
-                        AlterUtil.showAlert(
-                            Alert.AlertType.ERROR,
-                            "图片加载失败",
-                            "解码错误：" + imagePath,
-                            stackPane != null && stackPane.getScene() != null ? stackPane.getScene().getWindow() : null
-                        );
-                        if (image.getException() != null) {
-                            image.getException().printStackTrace();
-                        }
+                        AlterUtil.showAlert(Alert.AlertType.ERROR, "图片加载失败",
+                                "解码错误：" + imagePath, getWindow());
+                        if (image.getException() != null) image.getException().printStackTrace();
                     } else {
                         slideImageView.setImage(image);
                         zoomScale = 1.0;
@@ -158,77 +161,78 @@ public class SlideShowController {
                     }
                 }
             });
+
             image.exceptionProperty().addListener((obs, oldVal, newVal) -> {
                 if (newVal != null) {
-                    AlterUtil.showAlert(
-                        Alert.AlertType.ERROR,
-                        "图片加载失败",
-                        "加载图片失败：" + imagePath,
-                        stackPane != null && stackPane.getScene() != null ? stackPane.getScene().getWindow() : null
-                    );
+                    AlterUtil.showAlert(Alert.AlertType.ERROR, "图片加载失败",
+                            "加载图片失败：" + imagePath, getWindow());
                     newVal.printStackTrace();
                 }
             });
         } catch (Exception e) {
-            AlterUtil.showAlert(
-                Alert.AlertType.ERROR,
-                "图片加载失败",
-                "加载图片失败：" + imagePath,
-                stackPane != null && stackPane.getScene() != null ? stackPane.getScene().getWindow() : null
-            );
+            AlterUtil.showAlert(Alert.AlertType.ERROR, "图片加载失败",
+                    "加载图片失败：" + imagePath, getWindow());
             e.printStackTrace();
         }
     }
 
+    /** 获取当前窗口引用，用于 Alert 弹窗的 owner */
+    private javafx.stage.Window getWindow() {
+        return stackPane != null && stackPane.getScene() != null ? stackPane.getScene().getWindow() : null;
+    }
+
+    /** 切换到上一张图片（循环） */
     @FXML
     public void prevImage() {
         if (imagePaths == null || imagePaths.isEmpty()) return;
-        currentIndex = (currentIndex - 1 + imagePaths.size()) % imagePaths.size(); // 上一张，循环
+        currentIndex = (currentIndex - 1 + imagePaths.size()) % imagePaths.size();
         loadImage(imagePaths.get(currentIndex));
         pageLabel.setText((currentIndex + 1) + "/" + imagePaths.size());
     }
 
+    /** 切换到下一张图片（循环） */
     @FXML
     public void nextImage() {
         if (imagePaths == null || imagePaths.isEmpty()) return;
-        currentIndex = (currentIndex + 1) % imagePaths.size(); // 下一张，循环
+        currentIndex = (currentIndex + 1) % imagePaths.size();
         loadImage(imagePaths.get(currentIndex));
         pageLabel.setText((currentIndex + 1) + "/" + imagePaths.size());
     }
 
+    /** 放大图片，同时停止自动播放 */
     @FXML
     public void zoomIn() {
-        if (playTimeline != null) playTimeline.stop(); // 缩放时停止播放
-        zoomScale = Math.min(zoomScale * 1.1, 5.0); // 放大
-        slideImageView.setFitWidth(slideImageView.getFitWidth() * 1.02);
-        slideImageView.setFitHeight(slideImageView.getFitHeight() * 1.02);
-        // 缩放时不重置平移
+        if (playTimeline != null) playTimeline.stop();
+        zoomScale = Math.min(zoomScale * 1.1, 5.0);
+        slideImageView.setFitWidth(slideImageView.getFitWidth() * zoomScale);
+        slideImageView.setFitHeight(slideImageView.getFitHeight() * zoomScale);
     }
 
+    /** 缩小图片，同时停止自动播放 */
     @FXML
     public void zoomOut() {
-        if (playTimeline != null) playTimeline.stop(); // 缩放时停止播放
-        zoomScale = Math.max(zoomScale / 1.1, 0.1); // 缩小
-        slideImageView.setFitWidth(slideImageView.getFitWidth() / 1.02);
-        slideImageView.setFitHeight(slideImageView.getFitHeight() / 1.02);
-        // 缩放时不重置平移
+        if (playTimeline != null) playTimeline.stop();
+        zoomScale = Math.max(zoomScale / 1.1, 0.1);
+        slideImageView.setFitWidth(slideImageView.getFitWidth() / zoomScale);
+        slideImageView.setFitHeight(slideImageView.getFitHeight() / zoomScale);
     }
 
+    /** 启动自动播放 */
     @FXML
     public void startPlay() {
         if (imagePaths == null || imagePaths.isEmpty() || playTimeline == null) return;
-        playTimeline.play(); // 开始自动播放
+        playTimeline.play();
     }
 
+    /** 停止自动播放 */
     @FXML
     public void stopPlay() {
-        if (playTimeline != null) {
-            playTimeline.stop(); // 停止自动播放
-        }
+        if (playTimeline != null) playTimeline.stop();
     }
 
+    /** 消费鼠标事件，防止缩放按钮触发缩放操作 */
     @FXML
     private void stopZooming(javafx.scene.input.MouseEvent event) {
-        event.consume(); // 阻止事件冒泡
+        event.consume();
     }
 }
