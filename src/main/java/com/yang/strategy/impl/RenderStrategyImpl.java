@@ -18,10 +18,16 @@ import java.util.Deque;
 @Component
 public class RenderStrategyImpl implements RenderStrategy {
 
+    /** 触发渐进式渲染的文件数量阈值 */
     private static final int PROGRESSIVE_THRESHOLD = 50;
+
+    /** 卡片间距 */
     private static final Insets CARD_MARGIN = new Insets(5);
 
+    /** 构建管线时间线 */
     private Timeline buildTimeline;
+
+    /** 渲染管线时间线 */
     private Timeline renderTimeline;
 
     @Override
@@ -32,12 +38,15 @@ public class RenderStrategyImpl implements RenderStrategy {
     @Override
     public void startBuildPipeline(Deque<Runnable> buildTasks, int batchSize, Runnable onComplete) {
         stopBuildPipeline();
+
+        // 每帧处理一批构建任务，约60fps
         buildTimeline = new Timeline(new KeyFrame(Duration.millis(16), event -> {
             int built = 0;
             while (built < batchSize && !buildTasks.isEmpty()) {
                 buildTasks.pollFirst().run();
                 built++;
             }
+            // 所有任务完成后停止并回调
             if (buildTasks.isEmpty()) {
                 buildTimeline.stop();
                 if (onComplete != null) onComplete.run();
@@ -50,6 +59,8 @@ public class RenderStrategyImpl implements RenderStrategy {
     @Override
     public void startRenderPipeline(Deque<RenderTask> renderTasks, FlowPane targetPane, int batchSize) {
         stopRenderPipeline();
+
+        // 每帧替换一批占位节点为实际卡片
         renderTimeline = new Timeline(new KeyFrame(Duration.millis(16), event -> {
             int rendered = 0;
             while (rendered < batchSize && !renderTasks.isEmpty()) {
@@ -74,6 +85,7 @@ public class RenderStrategyImpl implements RenderStrategy {
         stopRenderPipeline();
     }
 
+    /** 停止构建管线并释放资源 */
     private void stopBuildPipeline() {
         if (buildTimeline != null) {
             buildTimeline.stop();
@@ -81,6 +93,7 @@ public class RenderStrategyImpl implements RenderStrategy {
         }
     }
 
+    /** 停止渲染管线并释放资源 */
     private void stopRenderPipeline() {
         if (renderTimeline != null) {
             renderTimeline.stop();

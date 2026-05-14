@@ -11,61 +11,65 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/** 目录树服务，管理 TreeView 的异步加载、路径展开和状态追踪 */
 public class DirectoryTreeService {
     public DirectoryTreeService(TreeView<String> dirTreeView) {
-        this.dirTreeView = dirTreeView; // 目录树控件
+        this.dirTreeView = dirTreeView;
     }
 
-    private final TreeView<String> dirTreeView; // 目录树控件引用
-    private final Map<TreeItem<String>, String> treeItemStatus = new ConcurrentHashMap<>(); // 节点加载状态
-    private static final String STATUS_UNLOADED = "unloaded";   // 未加载
-    private static final String STATUS_LOADING = "loading";     // 加载中
-    private static final String STATUS_LOADED = "loaded";       // 已加载
-    private final ExecutorService dirExecutor = Executors.newFixedThreadPool(2, runnable -> { // 目录加载线程池
+    private final TreeView<String> dirTreeView;
+    /** 节点加载状态：unloaded → loading → loaded */
+    private final Map<TreeItem<String>, String> treeItemStatus = new ConcurrentHashMap<>();
+    private static final String STATUS_UNLOADED = "unloaded";
+    private static final String STATUS_LOADING = "loading";
+    private static final String STATUS_LOADED = "loaded";
+    /** 2线程守护线程池，用于异步扫描目录 */
+    private final ExecutorService dirExecutor = Executors.newFixedThreadPool(2, runnable -> {
         Thread thread = new Thread(runnable);
-        thread.setDaemon(true); // 守护线程，程序退出自动关闭
+        thread.setDaemon(true);
         thread.setName("Directory Loader");
         return thread;
     });
 
-    //初始化全盘符目录树（支持扫描全硬盘）
+    /** 初始化"我的电脑"根节点，为每个磁盘盘符创建子节点并注册展开监听 */
     public void initDirectoryTree() {
-        TreeItem<String> computerRoot = new TreeItem<>("我的电脑"); // 根节点
+        TreeItem<String> computerRoot = new TreeItem<>("我的电脑");
         computerRoot.setExpanded(true);
         dirTreeView.setRoot(computerRoot);
-        dirTreeView.setShowRoot(true); // 显示根节点
-        File[] roots = File.listRoots(); // 获取所有磁盘盘符
+        dirTreeView.setShowRoot(true);
+        File[] roots = File.listRoots();
         if (roots == null) roots = new File[0];
-        for (File root : roots) { // 为每个盘符创建节点
+        for (File root : roots) {
             TreeItem<String> driveItem = new TreeItem<>(root.getAbsolutePath());
-            driveItem.setExpanded(false); // 默认关闭
-            treeItemStatus.put(driveItem, STATUS_UNLOADED); // 初始化状态
+            driveItem.setExpanded(false);
+            treeItemStatus.put(driveItem, STATUS_UNLOADED);
             computerRoot.getChildren().add(driveItem);
-            driveItem.expandedProperty().addListener((obs, oldVal, newVal) -> { // 展开时加载
+            // 盘符展开时触发异步加载
+            driveItem.expandedProperty().addListener((obs, oldVal, newVal) -> {
                 if (newVal && STATUS_UNLOADED.equals(treeItemStatus.get(driveItem))) {
-                    loadChildrenAsync(driveItem, root, 1);// 异步加载子目录
+                    loadChildrenAsync(driveItem, root, 1);
                 }
             });
         }
     }
 
-    //异步加载子目录
+    /** 异步加载子目录，过滤系统目录和隐藏文件，限制递归深度为5层 */
     private void loadChildrenAsync(TreeItem<String> parentItem, File parentFile, int depth) {
-        String status = treeItemStatus.getOrDefault(parentItem, STATUS_UNLOADED); // 状态校验
+        String status = treeItemStatus.getOrDefault(parentItem, STATUS_UNLOADED);
         if (STATUS_LOADING.equals(status) || STATUS_LOADED.equals(status)) {
             return;
         }
-        treeItemStatus.put(parentItem, STATUS_LOADING); // 标记为加载中
-        if (depth > 5) { // 限制递归深度
+        treeItemStatus.put(parentItem, STATUS_LOADING);
+        if (depth > 5) {
             treeItemStatus.put(parentItem, STATUS_LOADED);
             return;
         }
         if (!parentItem.isExpanded()) {
             parentItem.setExpanded(true);
         }
-        dirExecutor.submit(() -> { // 异步加载
+        dirExecutor.submit(() -> {
             File[] childFiles = parentFile.listFiles(File::isDirectory);
-            if (childFiles == null) { // 无法访问
+            if (childFiles == null) {
                 Platform.runLater(() -> {
                     TreeItem<String> emptyItem = new TreeItem<>("无访问权限");
                     parentItem.getChildren().add(emptyItem);
@@ -73,7 +77,8 @@ public class DirectoryTreeService {
                 treeItemStatus.put(parentItem, STATUS_LOADED);
                 return;
             }
-            List<File> filteredFiles = Arrays.stream(childFiles) // 过滤系统目录
+            // 过滤系统目录和隐藏文件，按名称排序
+            List<File> filteredFiles = Arrays.stream(childFiles)
                     .filter(file -> {
                         String name = file.getName();
                         return !name.equals("System Volume Information")
@@ -91,7 +96,7 @@ public class DirectoryTreeService {
                 } else {
                     for (File childFile : filteredFiles) {
                         TreeItem<String> childItem = new TreeItem<>(childFile.getName());
-                        treeItemStatus.put(childItem, STATUS_UNLOADED); // 子节点未加载
+                        treeItemStatus.put(childItem, STATUS_UNLOADED);
                         childItem.expandedProperty().addListener((obs, oldVal, newVal) -> {
                             if (newVal && STATUS_UNLOADED.equals(treeItemStatus.get(childItem))) {
                                 loadChildrenAsync(childItem, childFile, depth + 1);
@@ -111,7 +116,7 @@ public class DirectoryTreeService {
             return item.getValue(); // 根节点或盘符
         }
         String parentPath = getFullPath(item.getParent());
-        String fullPath = parentPath + File.separator + item.getValue(); // 拼接路径
+        String fullPath = parentPath + File.separator + item.getValue();
         return fullPath.replace("\\\\", "\\");
     }
 
@@ -130,7 +135,7 @@ public class DirectoryTreeService {
 
         if (depth > 15) return; // 防止死循环
 
-        if (targetPath.equals(currentPath)) { // 找到目标
+        if (targetPath.equals(currentPath)) {
             currentItem.setExpanded(true);
             dirTreeView.getSelectionModel().select(currentItem);
             return;
@@ -182,7 +187,7 @@ public class DirectoryTreeService {
 
     //非阻塞重试展开，避免无限循环
     private void retryExpand(TreeItem<String> item, String targetPath, int depth, int retryCount) {
-        if (retryCount > 10) return; // 最多重试 10 次
+        if (retryCount > 10) return;
         PauseTransition retryPause = new PauseTransition(Duration.millis(200));
         retryPause.setOnFinished(e -> {
             if (item.getChildren().isEmpty()) {
@@ -206,6 +211,6 @@ public class DirectoryTreeService {
 
     // 提供线程池关闭方法
     public void shutdown() {
-        dirExecutor.shutdown(); // 关闭线程池
+        dirExecutor.shutdown();
     }
 }
