@@ -280,7 +280,7 @@ public class MainController {
         });
     }
 
-    private void loadImagesToFlowPane(File dir) {
+    private void loadImagesToFlowPane(File dir, Runnable onComplete) {
         long loadToken = ++activeLoadToken;
         renderStrategy.stopAll();
         pendingBuildTasks.clear();
@@ -369,10 +369,15 @@ public class MainController {
 
                 renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, () -> {
                     isLoadingMore = false;
+                    if (onComplete != null) onComplete.run();
                 });
                 updateTipLabel();
             });
         });
+    }
+
+    private void loadImagesToFlowPane(File dir) {
+        loadImagesToFlowPane(dir, null);
     }
 
     // 直接添加 VBox 到 FlowPane
@@ -538,6 +543,22 @@ public class MainController {
             pathField.setText(prev.getAbsolutePath());
             loadImagesToFlowPane(prev);
             directoryTreeService.expandAndSelectInTree(prev.getAbsolutePath());
+        } else if (navigationService.getCurrentDirectory() == null) {
+            // 返回到首页状态
+            pathField.clear();
+            renderStrategy.stopAll();
+            imageFlowPane.getChildren().clear();
+            selectedVBoxes.clear();
+            vBoxToFile.clear();
+            allFiles.clear();
+            pendingImageFiles.clear();
+            pendingNonImageFiles.clear();
+            isLoadingMore = false;
+            emptyTipLabel.setVisible(false);
+            emptyTipLabel.setManaged(false);
+            initFlowPaneHint();
+            updateTipLabel();
+            dirTreeView.getSelectionModel().clearSelection();
         }
     }
 
@@ -548,6 +569,22 @@ public class MainController {
             pathField.setText(next.getAbsolutePath());
             loadImagesToFlowPane(next);
             directoryTreeService.expandAndSelectInTree(next.getAbsolutePath());
+        } else if (navigationService.getCurrentDirectory() == null) {
+            // 前进到首页状态
+            pathField.clear();
+            renderStrategy.stopAll();
+            imageFlowPane.getChildren().clear();
+            selectedVBoxes.clear();
+            vBoxToFile.clear();
+            allFiles.clear();
+            pendingImageFiles.clear();
+            pendingNonImageFiles.clear();
+            isLoadingMore = false;
+            emptyTipLabel.setVisible(false);
+            emptyTipLabel.setManaged(false);
+            initFlowPaneHint();
+            updateTipLabel();
+            dirTreeView.getSelectionModel().clearSelection();
         }
     }
 
@@ -691,8 +728,7 @@ public class MainController {
     private void pasteFiles() {
         File currentDir = navigationService.getCurrentDirectory();
         List<File> pasted = fileOperationService.pasteFiles(currentDir);
-        loadImagesToFlowPane(currentDir);
-        Platform.runLater(() -> {
+        loadImagesToFlowPane(currentDir, () -> {
             selectedVBoxes.clear();
             vBoxToFile.forEach((vbox, file) -> {
                 if (pasted.contains(file)) {
