@@ -63,13 +63,11 @@ public class MainController {
     private static final int LOAD_MORE_BATCH_SIZE = 60;
     private List<File> pendingImageFiles = new ArrayList<>();
     private List<File> pendingNonImageFiles = new ArrayList<>();
-    private Map<File, Integer> pendingFileIndexMap = new HashMap<>();
     private volatile boolean isLoadingMore = false;
 
     private static final String NORMAL_STYLE = "-fx-alignment: center; -fx-border-color: #d4dce8; -fx-border-width: 1.5px; -fx-background-color: #ffffff; -fx-background-radius: 14; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(56, 68, 84, 0.11), 10, 0, 0, 2);";
     private static final String SELECTED_STYLE = "-fx-alignment: center; -fx-border-color: #5a98ea; -fx-border-width: 2px; -fx-background-color: #eaf2ff; -fx-background-radius: 14; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(90, 152, 234, 0.24), 12, 0, 0, 2);";
     private ContextMenu blankContextMenu = null;
-    private ContextMenu imageContextMenu = null;
     private static final int THUMB_SIZE = 120;
     private static final int HOVER_EFFECT_THRESHOLD = 500;
     private static final int BUILD_BATCH_SIZE = 50;
@@ -99,36 +97,40 @@ public class MainController {
         initFlowPaneHint();
         directoryTreeService.initDirectoryTree();
 
-        imageScrollPane.viewportBoundsProperty().addListener((obs, oldBounds, newBounds) -> {
-            imageFlowPane.setPrefWidth(newBounds.getWidth());
+        // 视口尺寸变化时更新 FlowPane/AnchorPane 宽度，并同步 AnchorPane 高度
+        imageScrollPane.viewportBoundsProperty().addListener((obs, oldVal, newVal) -> {
+            imageFlowPane.setPrefWidth(newVal.getWidth());
+            imageAnchorPane.setPrefWidth(newVal.getWidth());
+            if (imageFlowPane.getChildren().isEmpty()) {
+                imageAnchorPane.setPrefHeight(Math.max(newVal.getHeight(), 0));
+            } else {
+                // 宽度变化会导致 FlowPane 重新换行，高度改变，需延迟重新计算
+                Platform.runLater(this::syncAnchorPaneHeight);
+            }
         });
 
-        imageScrollPane.viewportBoundsProperty().addListener((obs, oldVal, newVal) -> {
-            imageAnchorPane.setPrefWidth(newVal.getWidth());
-            // 视口高度变化时重新计算 AnchorPane 高度
-            double viewportH = newVal.getHeight();
-            if (imageFlowPane.getChildren().isEmpty()) {
-                imageAnchorPane.setPrefHeight(Math.max(viewportH, 0));
+        // FlowPane 宽度变化时也需要同步高度（换行导致高度改变）
+        imageFlowPane.widthProperty().addListener((obs, oldVal, newVal) -> {
+            if (!imageFlowPane.getChildren().isEmpty()) {
+                Platform.runLater(this::syncAnchorPaneHeight);
             }
         });
 
         // AnchorPane 高度跟随 FlowPane 内容高度
-        // FlowPane 无 topAnchor 约束，高度由内容驱动，不会循环依赖
         imageFlowPane.heightProperty().addListener((obs, oldVal, newVal) -> {
-            double flowH = newVal.doubleValue();
-            if (flowH > 0) {
-                imageAnchorPane.setPrefHeight(flowH);
-                // 强制触发布局更新，使 ScrollPane 能及时检测到内容高度变化并显示滚动条
-                imageAnchorPane.requestLayout();
+            if (newVal.doubleValue() > 0) {
+                syncAnchorPaneHeight();
             }
         });
 
-        // 空目录时 AnchorPane 填满视口以显示提示标签
+        // 子节点变化时同步高度
         imageFlowPane.getChildren().addListener((javafx.collections.ListChangeListener<javafx.scene.Node>) c -> {
             if (imageFlowPane.getChildren().isEmpty()) {
                 double viewportH = imageScrollPane.getViewportBounds() != null
                         ? imageScrollPane.getViewportBounds().getHeight() : 0;
                 imageAnchorPane.setPrefHeight(Math.max(viewportH, 0));
+            } else {
+                Platform.runLater(this::syncAnchorPaneHeight);
             }
         });
 
@@ -288,7 +290,6 @@ public class MainController {
         fileSizeCache.clear();
         pendingImageFiles.clear();
         pendingNonImageFiles.clear();
-        pendingFileIndexMap.clear();
         isLoadingMore = false;
         imageFlowPane.getChildren().clear();
 
@@ -299,6 +300,7 @@ public class MainController {
                 Platform.runLater(() -> {
                     if (isStaleLoad(loadToken, dir)) return;
                     emptyTipLabel.setVisible(true);
+                    emptyTipLabel.setManaged(true);
                     cachedImageCount = 0;
                     cachedTotalSize = 0;
                     updateTipLabel();
@@ -332,16 +334,12 @@ public class MainController {
             Platform.runLater(() -> {
                 if (isStaleLoad(loadToken, dir)) return;
                 emptyTipLabel.setVisible(false);
+                emptyTipLabel.setManaged(false);
                 allFiles.addAll(visibleFiles);
                 fileSizeCache.putAll(finalSizeCache);
                 cachedImageCount = finalImageCount;
                 cachedTotalSize = finalTotalSize;
                 vBoxFactory.setHoverEffectsEnabled(enableHoverEffects);
-
-                pendingFileIndexMap = new HashMap<>();
-                for (int i = 0; i < visibleFiles.size(); i++) {
-                    pendingFileIndexMap.put(visibleFiles.get(i), i);
-                }
 
                 // 只处理初始批次的文件
                 int nonImageCount = Math.min(nonImageFiles.size(), INITIAL_BATCH_SIZE);
@@ -369,7 +367,9 @@ public class MainController {
                     }));
                 }
 
-                renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, null);
+                renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, () -> {
+                    isLoadingMore = false;
+                });
                 updateTipLabel();
             });
         });
@@ -379,11 +379,23 @@ public class MainController {
     private void addVBoxToFlowPane(VBox vBox) {
         imageFlowPane.getChildren().add(vBox);
         javafx.scene.layout.FlowPane.setMargin(vBox, new javafx.geometry.Insets(5));
-        // 每次添加后立即更新 AnchorPane 高度，确保 ScrollPane 能检测到内容变化
-        double flowH = imageFlowPane.prefHeight(-1);
-        if (flowH > 0) {
-            imageAnchorPane.setPrefHeight(flowH);
-            imageScrollPane.requestLayout();
+        syncAnchorPaneHeight();
+        imageScrollPane.requestLayout();
+    }
+
+    // 根据 FlowPane 实际内容计算并同步 AnchorPane 高度
+    private void syncAnchorPaneHeight() {
+        double contentH = 0;
+        for (javafx.scene.Node child : imageFlowPane.getChildren()) {
+            double childEnd = child.getLayoutY() + child.prefHeight(-1);
+            javafx.geometry.Insets margin = javafx.scene.layout.FlowPane.getMargin(child);
+            if (margin != null) childEnd += margin.getBottom();
+            if (childEnd > contentH) contentH = childEnd;
+        }
+        javafx.geometry.Insets padding = imageFlowPane.getPadding();
+        double totalH = contentH + (padding != null ? padding.getBottom() : 0);
+        if (totalH > 0) {
+            imageAnchorPane.setPrefHeight(totalH);
         }
     }
 
