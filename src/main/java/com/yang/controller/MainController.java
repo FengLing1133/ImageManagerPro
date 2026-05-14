@@ -65,8 +65,8 @@ public class MainController {
     private List<File> pendingNonImageFiles = new ArrayList<>();
     private volatile boolean isLoadingMore = false;
 
-    private static final String NORMAL_STYLE = "-fx-alignment: center; -fx-border-color: #d4dce8; -fx-border-width: 1.5px; -fx-background-color: #ffffff; -fx-background-radius: 14; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(56, 68, 84, 0.11), 10, 0, 0, 2);";
-    private static final String SELECTED_STYLE = "-fx-alignment: center; -fx-border-color: #5a98ea; -fx-border-width: 2px; -fx-background-color: #eaf2ff; -fx-background-radius: 14; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(90, 152, 234, 0.24), 12, 0, 0, 2);";
+    private static final String NORMAL_STYLE = "-fx-alignment: center; -fx-border-color: #E5E7EB; -fx-border-width: 1.5px; -fx-background-color: #FFFFFF; -fx-background-radius: 8; -fx-border-radius: 8;";
+    private static final String SELECTED_STYLE = "-fx-alignment: center; -fx-border-color: #06B6D4; -fx-border-width: 2px; -fx-background-color: #ECFEFF; -fx-background-radius: 8; -fx-border-radius: 8; -fx-effect: dropshadow(gaussian, rgba(6, 182, 212, 0.15), 10, 0, 0, 2);";
     private ContextMenu blankContextMenu = null;
     private static final int THUMB_SIZE = 120;
     private static final int HOVER_EFFECT_THRESHOLD = 500;

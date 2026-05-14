@@ -27,7 +27,7 @@ public class VBoxFactory {
         ContextMenu build();
     }
     private static final int FILE_NAME_MAX_LENGTH = 18; // 文件名最大显示长度（含省略号）
-    private static final Insets CARD_PADDING = new Insets(5);
+    private static final Insets CARD_PADDING = new Insets(8);
     private static final Image FOLDER_ICON = loadIcon("/icons/folder.png");
     private static final Image FILE_ICON = loadIcon("/icons/file.png");
     private volatile boolean hoverEffectsEnabled = true;
@@ -229,7 +229,7 @@ public class VBoxFactory {
         up.setToY(-4);
         TranslateTransition down = new TranslateTransition(Duration.millis(140), vBox); // 还原动画
         down.setToY(0);
-        DropShadow hoverShadow = new DropShadow(14, Color.rgb(56, 68, 84, 0.18)); // 阴影
+        DropShadow hoverShadow = new DropShadow(10, Color.rgb(6, 182, 212, 0.12)); // 青色调阴影
         hoverShadow.setOffsetY(3);
 
         vBox.setOnMouseEntered(event -> {
@@ -313,6 +313,6 @@ public class VBoxFactory {
             event.consume();
         });
         imageFlowPane.getChildren().add(vBox);
-        FlowPane.setMargin(vBox, new Insets(5));
+        FlowPane.setMargin(vBox, new Insets(4));
     }
 }
