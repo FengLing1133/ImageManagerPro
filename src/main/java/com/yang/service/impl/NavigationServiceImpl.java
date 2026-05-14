@@ -56,13 +56,6 @@ public class NavigationServiceImpl implements NavigationService {
     }
 
     @Override
-    public File undoNavigation() {
-        if (backStack.isEmpty()) return null;
-        currentDirectory = backStack.pop();
-        return currentDirectory;
-    }
-
-    @Override
     public File getCurrentDirectory() {
         return currentDirectory;
     }

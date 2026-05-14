@@ -198,25 +198,6 @@ class NavigationServiceImplTest {
         assertThat(service.hasForwardHistory()).isTrue();
     }
 
-    // === undoNavigation ===
-
-    @Test
-    @DisplayName("undoNavigation: 弹出后退栈顶部")
-    void undoNavigation_popsBackStackTop() {
-        service.navigateTo(dirA);
-        service.navigateTo(dirB);
-
-        File result = service.undoNavigation();
-
-        assertThat(result).isEqualTo(dirA);
-    }
-
-    @Test
-    @DisplayName("undoNavigation: 空栈返回null")
-    void undoNavigation_emptyStackReturnsNull() {
-        assertThat(service.undoNavigation()).isNull();
-    }
-
     // === setCurrentDirectory ===
 
     @Test

@@ -44,12 +44,6 @@ public interface NavigationService {
     boolean hasForwardHistory();
 
     /**
-     * 撤销返回（从历史栈弹出）
-     * @return 上一个目录，如果历史为空返回 null
-     */
-    File undoNavigation();
-
-    /**
      * 获取当前目录
      */
     File getCurrentDirectory();
