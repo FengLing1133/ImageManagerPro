@@ -67,9 +67,7 @@ public class SlideShowController {
             } else {
                 zoomScale = Math.max(zoomScale / 1.05, 0.1);
             }
-            double finalScale = baseScale * zoomScale;
-            slideImageView.setFitWidth(slideImageView.getImage().getWidth() * finalScale);
-            slideImageView.setFitHeight(slideImageView.getImage().getHeight() * finalScale);
+            applyZoom();
         });
 
         // 鼠标拖拽平移
@@ -203,9 +201,8 @@ public class SlideShowController {
     @FXML
     public void zoomIn() {
         if (playTimeline != null) playTimeline.stop();
-        zoomScale = Math.min(zoomScale * 1.1, 5.0);
-        slideImageView.setFitWidth(slideImageView.getFitWidth() * zoomScale);
-        slideImageView.setFitHeight(slideImageView.getFitHeight() * zoomScale);
+        zoomScale = Math.min(zoomScale * 1.1, 10.0);
+        applyZoom();
     }
 
     /** 缩小图片，同时停止自动播放 */
@@ -213,8 +210,16 @@ public class SlideShowController {
     public void zoomOut() {
         if (playTimeline != null) playTimeline.stop();
         zoomScale = Math.max(zoomScale / 1.1, 0.1);
-        slideImageView.setFitWidth(slideImageView.getFitWidth() / zoomScale);
-        slideImageView.setFitHeight(slideImageView.getFitHeight() / zoomScale);
+        applyZoom();
+    }
+
+    /** 根据 baseScale 和 zoomScale 重新计算图片显示尺寸 */
+    private void applyZoom() {
+        Image image = slideImageView.getImage();
+        if (image == null) return;
+        double finalScale = baseScale * zoomScale;
+        slideImageView.setFitWidth(image.getWidth() * finalScale);
+        slideImageView.setFitHeight(image.getHeight() * finalScale);
     }
 
     /** 启动自动播放 */
