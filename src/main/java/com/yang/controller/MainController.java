@@ -543,22 +543,6 @@ public class MainController {
             pathField.setText(prev.getAbsolutePath());
             loadImagesToFlowPane(prev);
             directoryTreeService.expandAndSelectInTree(prev.getAbsolutePath());
-        } else if (navigationService.getCurrentDirectory() == null) {
-            // 返回到首页状态
-            pathField.clear();
-            renderStrategy.stopAll();
-            imageFlowPane.getChildren().clear();
-            selectedVBoxes.clear();
-            vBoxToFile.clear();
-            allFiles.clear();
-            pendingImageFiles.clear();
-            pendingNonImageFiles.clear();
-            isLoadingMore = false;
-            emptyTipLabel.setVisible(false);
-            emptyTipLabel.setManaged(false);
-            initFlowPaneHint();
-            updateTipLabel();
-            dirTreeView.getSelectionModel().clearSelection();
         }
     }
 
@@ -569,22 +553,6 @@ public class MainController {
             pathField.setText(next.getAbsolutePath());
             loadImagesToFlowPane(next);
             directoryTreeService.expandAndSelectInTree(next.getAbsolutePath());
-        } else if (navigationService.getCurrentDirectory() == null) {
-            // 前进到首页状态
-            pathField.clear();
-            renderStrategy.stopAll();
-            imageFlowPane.getChildren().clear();
-            selectedVBoxes.clear();
-            vBoxToFile.clear();
-            allFiles.clear();
-            pendingImageFiles.clear();
-            pendingNonImageFiles.clear();
-            isLoadingMore = false;
-            emptyTipLabel.setVisible(false);
-            emptyTipLabel.setManaged(false);
-            initFlowPaneHint();
-            updateTipLabel();
-            dirTreeView.getSelectionModel().clearSelection();
         }
     }
 
@@ -727,19 +695,8 @@ public class MainController {
 
     private void pasteFiles() {
         File currentDir = navigationService.getCurrentDirectory();
-        List<File> pasted = fileOperationService.pasteFiles(currentDir);
-        loadImagesToFlowPane(currentDir, () -> {
-            selectedVBoxes.clear();
-            vBoxToFile.forEach((vbox, file) -> {
-                if (pasted.contains(file)) {
-                    vbox.setStyle(SELECTED_STYLE);
-                    selectedVBoxes.add(vbox);
-                } else {
-                    vbox.setStyle(NORMAL_STYLE);
-                }
-            });
-            updateTipLabel();
-        });
+        fileOperationService.pasteFiles(currentDir);
+        loadImagesToFlowPane(currentDir);
     }
 
     private void recalculateDirectoryStats() {
