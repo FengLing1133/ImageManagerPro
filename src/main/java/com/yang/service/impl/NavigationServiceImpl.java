@@ -82,6 +82,13 @@ public class NavigationServiceImpl implements NavigationService {
     }
 
     @Override
+    public void pushBackStack(File dir) {
+        if (dir != null && dir.isDirectory()) {
+            backStack.push(dir);
+        }
+    }
+
+    @Override
     public File resolvePath(String path) {
         if (path == null || path.trim().isEmpty()) return null;
         File file = new File(path);

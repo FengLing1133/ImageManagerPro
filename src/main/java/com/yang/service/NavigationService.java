@@ -59,6 +59,12 @@ public interface NavigationService {
     void clearHistory();
 
     /**
+     * 将目录压入后退栈（不改变当前目录）
+     * 用于快捷方式跳转前预填父级目录，使后退按钮可用
+     */
+    void pushBackStack(File dir);
+
+    /**
      * 解析路径字符串为 File，验证是否为有效目录
      * @return 有效的目录 File，无效返回 null
      */
