@@ -263,18 +263,12 @@ public class VBoxFactory {
         pasteItem.setOnAction(e -> {
             if (onPaste != null) onPaste.run();
         });
-        if (selectedCount == 1) {
-            // 单选全部可用
+        if (selectedCount >= 1) {
+            // 单选和多选全部可用
             deleteItem.setDisable(false);
             copyItem.setDisable(false);
             renameItem.setDisable(false);
             pasteItem.setDisable(false);
-        } else if (selectedCount > 1) {
-            // 多选时重命名、粘贴禁用
-            deleteItem.setDisable(false);
-            copyItem.setDisable(false);
-            renameItem.setDisable(true);
-            pasteItem.setDisable(true);
         } else {
             // 空白或异常，只有粘贴可用
             deleteItem.setDisable(true);

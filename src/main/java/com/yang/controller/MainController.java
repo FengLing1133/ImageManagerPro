@@ -657,36 +657,83 @@ public class MainController {
         fileOperationService.copyToClipboard(files);
     }
 
-    /** 重命名单个选中文件（仅单选，自动保留扩展名） */
+    /** 重命名选中文件，多选时按显示顺序添加数字后缀 (1)(2)(3)... */
     private void renameSelected() {
         if (selectedVBoxes.isEmpty()) return;
-        if (selectedVBoxes.size() > 1) {
-            showAlert(Alert.AlertType.INFORMATION, "提示", "多选时不支持重命名");
-            return;
-        }
-        VBox vBox = selectedVBoxes.iterator().next();
-        File file = vBoxToFile.get(vBox);
-        if (file == null) return;
-        TextInputDialog dialog = new TextInputDialog(file.getName());
-        dialog.setTitle("重命名");
-        dialog.setHeaderText("输入新文件名");
-        dialog.showAndWait().ifPresent(newName -> {
-            if (!newName.trim().isEmpty()) {
-                String ext = "";
-                int dotIndex = file.getName().lastIndexOf('.');
-                if (dotIndex > 0) ext = file.getName().substring(dotIndex);
-                String newNameWithExt = newName.contains(".") ? newName : newName + ext;
-                if (fileOperationService.renameFile(file, newNameWithExt)) {
-                    File newFile = new File(file.getParent(), newNameWithExt);
-                    vBoxToFile.put(vBox, newFile);
-                    ((Label) vBox.getChildren().get(1)).setText(VBoxFactory.truncateFileName(newNameWithExt));
-                    allFiles.set(allFiles.indexOf(file), newFile);
-                    recalculateDirectoryStats();
-                } else {
-                    showAlert(Alert.AlertType.ERROR, "重命名失败", "无法重命名文件");
+
+        // 按 allFiles 中的显示顺序排序选中的 VBox
+        List<VBox> orderedSelected = selectedVBoxes.stream()
+                .sorted(Comparator.comparingInt(vb -> {
+                    File f = vBoxToFile.get(vb);
+                    return f != null ? allFiles.indexOf(f) : Integer.MAX_VALUE;
+                }))
+                .toList();
+
+        if (orderedSelected.size() == 1) {
+            // 单选：保持原有行为
+            VBox vBox = orderedSelected.get(0);
+            File file = vBoxToFile.get(vBox);
+            if (file == null) return;
+            TextInputDialog dialog = new TextInputDialog(file.getName());
+            dialog.setTitle("重命名");
+            dialog.setHeaderText("输入新文件名");
+            dialog.showAndWait().ifPresent(newName -> {
+                if (!newName.trim().isEmpty()) {
+                    String ext = getExtension(file.getName());
+                    String newNameWithExt = newName.contains(".") ? newName : newName + ext;
+                    if (fileOperationService.renameFile(file, newNameWithExt)) {
+                        updateAfterRename(vBox, file, newNameWithExt);
+                    } else {
+                        showAlert(Alert.AlertType.ERROR, "重命名失败", "无法重命名文件");
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            // 多选：批量重命名，按选中顺序添加数字后缀
+            File firstFile = vBoxToFile.get(orderedSelected.get(0));
+            if (firstFile == null) return;
+            TextInputDialog dialog = new TextInputDialog(firstFile.getName());
+            dialog.setTitle("批量重命名");
+            dialog.setHeaderText("输入新文件名（将自动添加数字后缀）");
+            dialog.setContentText("将重命名 " + orderedSelected.size() + " 个文件");
+            dialog.showAndWait().ifPresent(baseName -> {
+                if (baseName.trim().isEmpty()) return;
+                String ext = getExtension(firstFile.getName());
+                String baseNameNoExt = baseName.contains(".") ? baseName.substring(0, baseName.lastIndexOf('.')) : baseName;
+                int successCount = 0;
+                for (int i = 0; i < orderedSelected.size(); i++) {
+                    VBox vBox = orderedSelected.get(i);
+                    File file = vBoxToFile.get(vBox);
+                    if (file == null) continue;
+                    String fileExt = getExtension(file.getName());
+                    String newNameWithExt = baseNameNoExt + "(" + (i + 1) + ")" + fileExt;
+                    if (fileOperationService.renameFile(file, newNameWithExt)) {
+                        updateAfterRename(vBox, file, newNameWithExt);
+                        successCount++;
+                    }
+                }
+                if (successCount < orderedSelected.size()) {
+                    showAlert(Alert.AlertType.WARNING, "批量重命名完成",
+                            "成功 " + successCount + " 个，失败 " + (orderedSelected.size() - successCount) + " 个");
+                }
+            });
+        }
+    }
+
+    /** 获取文件扩展名（含点号），无扩展名返回空字符串 */
+    private String getExtension(String fileName) {
+        int dotIndex = fileName.lastIndexOf('.');
+        return dotIndex > 0 ? fileName.substring(dotIndex) : "";
+    }
+
+    /** 重命名成功后更新 UI 和数据 */
+    private void updateAfterRename(VBox vBox, File oldFile, String newNameWithExt) {
+        File newFile = new File(oldFile.getParent(), newNameWithExt);
+        vBoxToFile.put(vBox, newFile);
+        ((Label) vBox.getChildren().get(1)).setText(VBoxFactory.truncateFileName(newNameWithExt));
+        int idx = allFiles.indexOf(oldFile);
+        if (idx >= 0) allFiles.set(idx, newFile);
+        recalculateDirectoryStats();
     }
 
     /** 从剪贴板粘贴文件到当前目录 */
