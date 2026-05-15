@@ -125,6 +125,16 @@ public class SlideShowController {
         }
     }
 
+    /** 仅设置图片路径列表，不加载图片（配合 setCurrentIndex 使用，避免竞态） */
+    public void setImagePathsOnly(List<String> imagePaths) {
+        this.imagePaths = imagePaths == null ? null : new ArrayList<>(imagePaths);
+        this.currentIndex = 0;
+        if (this.imagePaths == null || this.imagePaths.isEmpty()) {
+            pageLabel.setText("0/0");
+            slideImageView.setImage(null);
+        }
+    }
+
     /** 设置当前图片索引，自动边界保护 */
     public void setCurrentIndex(int index) {
         if (imagePaths == null || imagePaths.isEmpty()) return;
@@ -133,7 +143,7 @@ public class SlideShowController {
         pageLabel.setText((currentIndex + 1) + "/" + imagePaths.size());
     }
 
-    /** 异步加载图片，加载成功后自适应窗口，失败时弹出错误提示 */
+    /** 加载图片，加载成功后自适应窗口，失败时弹出错误提示 */
     private void loadImage(String imagePath) {
         try {
             File imageFile = new File(imagePath);
@@ -143,30 +153,19 @@ public class SlideShowController {
                 return;
             }
 
-            // 异步加载，避免阻塞 UI 线程
-            Image image = new Image(imageFile.toURI().toString(), true);
+            // 同步加载图片，避免 JavaFX 缓存导致 progress 监听器不触发的问题
+            Image image = new Image(imageFile.toURI().toString(), false);
 
-            image.progressProperty().addListener((obs, oldVal, newVal) -> {
-                if (newVal.doubleValue() >= 1.0) {
-                    if (image.isError()) {
-                        AlterUtil.showAlert(Alert.AlertType.ERROR, "图片加载失败",
-                                "解码错误：" + imagePath, getWindow());
-                        if (image.getException() != null) image.getException().printStackTrace();
-                    } else {
-                        slideImageView.setImage(image);
-                        zoomScale = 1.0;
-                        fitImageToWindow();
-                    }
-                }
-            });
+            if (image.isError()) {
+                AlterUtil.showAlert(Alert.AlertType.ERROR, "图片加载失败",
+                        "解码错误：" + imagePath, getWindow());
+                if (image.getException() != null) image.getException().printStackTrace();
+                return;
+            }
 
-            image.exceptionProperty().addListener((obs, oldVal, newVal) -> {
-                if (newVal != null) {
-                    AlterUtil.showAlert(Alert.AlertType.ERROR, "图片加载失败",
-                            "加载图片失败：" + imagePath, getWindow());
-                    newVal.printStackTrace();
-                }
-            });
+            slideImageView.setImage(image);
+            zoomScale = 1.0;
+            fitImageToWindow();
         } catch (Exception e) {
             AlterUtil.showAlert(Alert.AlertType.ERROR, "图片加载失败",
                     "加载图片失败：" + imagePath, getWindow());

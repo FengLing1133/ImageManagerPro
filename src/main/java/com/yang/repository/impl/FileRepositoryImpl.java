@@ -94,12 +94,11 @@ public class FileRepositoryImpl implements FileRepository {
     public List<String> getImagePaths(File directory) {
         File[] files = directory.listFiles();
         if (files == null) return Collections.emptyList();
-
         return Arrays.stream(files)
                 .filter(File::isFile)
                 .filter(this::isImageFile)
+                .sorted((f1, f2) -> f1.getName().compareToIgnoreCase(f2.getName()))
                 .map(File::getAbsolutePath)
-                .sorted()
                 .collect(Collectors.toList());
     }
 }

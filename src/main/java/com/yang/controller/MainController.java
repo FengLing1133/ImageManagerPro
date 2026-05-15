@@ -585,8 +585,29 @@ public class MainController {
             showAlert(Alert.AlertType.WARNING, "未找到图片", "当前目录中没有可播放的图片");
             return;
         }
-        int index = imagePaths.indexOf(imageFile.getAbsolutePath());
+        int index = indexOfPath(imagePaths, imageFile);
+        System.out.println("[DEBUG] 双击图片: " + imageFile.getAbsolutePath());
+        System.out.println("[DEBUG] indexOf结果: " + index + ", imagePaths数量: " + imagePaths.size());
+        if (index < 0) {
+            System.out.println("[DEBUG] indexOf失败! 首个路径: " + imagePaths.get(0));
+            System.out.println("[DEBUG] 匹配尝试: " + imagePaths.indexOf(imageFile.getAbsolutePath()));
+        }
         showSlideShowWindow(imagePaths, Math.max(index, 0));
+    }
+
+    /** 在路径列表中查找文件索引，先尝试精确匹配，失败则按文件名匹配 */
+    private int indexOfPath(List<String> imagePaths, File imageFile) {
+        // 先尝试精确路径匹配
+        int idx = imagePaths.indexOf(imageFile.getAbsolutePath());
+        if (idx >= 0) return idx;
+        // 精确匹配失败，按文件名匹配
+        String targetName = imageFile.getName();
+        for (int i = 0; i < imagePaths.size(); i++) {
+            if (imagePaths.get(i).endsWith(File.separator + targetName)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** 清空选中状态 */
