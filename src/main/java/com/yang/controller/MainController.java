@@ -35,13 +35,6 @@ public class MainController {
     @FXML private TextField pathField;
     @FXML private Label emptyTipLabel;
 
-    private final NavigationService navigationService; //导航服务业务逻辑层 封装目录导航、历史栈、路径解析等业务逻辑
-    private final FileOperationService fileOperationService; //文件操作业务逻辑层 处理文件的增删改查业务逻辑
-    private final ImageService imageService; //图片业务逻辑层 封装图片加载、缓存管理、缩略图生成等业务逻辑
-    private final DirectoryService directoryService; //目录服务业务逻辑层 封装目录树构建、子目录加载等业务逻辑
-    private final FileRepository fileRepository; //文件系统数据访问层 封装所有文件系统读写操作，隔离 I0 细节
-    private final RenderStrategy renderStrategy; //渲染策略接口 决定如何将构建好的 UI 卡片渲染到FLowPane
-
     private final VBoxFactory vBoxFactory = new VBoxFactory();
     private DirectoryTreeService directoryTreeService; //目录树服务，管理 TreeView的异步加载、路径展开和状态追踪
 
@@ -69,8 +62,14 @@ public class MainController {
 
     private ContextMenu blankContextMenu = null;
     private static final int THUMB_SIZE = 120;
-    /** 文件数超过此值时禁用卡片悬停动画，避免卡顿 */
     private static final int HOVER_EFFECT_THRESHOLD = 500;
+
+    private final NavigationService navigationService; //导航服务业务逻辑层 封装目录导航、历史栈、路径解析等业务逻辑
+    private final FileOperationService fileOperationService; //文件操作业务逻辑层 处理文件的增删改查业务逻辑
+    private final ImageService imageService; //图片业务逻辑层 封装图片加载、缓存管理、缩略图生成等业务逻辑
+    private final DirectoryService directoryService; //目录服务业务逻辑层 封装目录树构建、子目录加载等业务逻辑
+    private final FileRepository fileRepository; //文件系统数据访问层 封装所有文件系统读写操作，隔离 I0 细节
+    private final RenderStrategy renderStrategy; //渲染策略接口 决定如何将构建好的 UI 卡片渲染到FLowPane
 
     /** 构造器注入 */
     public MainController(NavigationService navigationService,
@@ -87,15 +86,14 @@ public class MainController {
         this.renderStrategy = renderStrategy;
     }
 
-    /** FXML 初始化 */
     @FXML
     public void initialize() {
-        directoryTreeService = new DirectoryTreeService(dirTreeView);
-        directoryTreeService.initDirectoryTree();
-        setupDirTreeCellFactory();
-        setupDirTreeSelectionListener();
-        setupPathFieldListener();
-        initFlowPaneHint();
+        directoryTreeService = new DirectoryTreeService(dirTreeView); //目录树服务，管理 TreeView的异步加载、路径展开和状态追踪
+        directoryTreeService.initDirectoryTree(); //初始化"我的电脑"根节点，为每个磁盘盘符创建子节点并注册展开监听
+        setupDirTreeCellFactory(); //配置目录树单元格工厂:按节点类型显示图标，单击切换展开/折叠
+        setupDirTreeSelectionListener(); //目录树选中监听:选中节点时导航到对应目录
+        setupPathFieldListener(); //路径输入框回车跳转:有效路径则导航，无效则短暂标红提示
+        initFlowPaneHint(); //初始化快捷入口:显示磁盘根目录和"我的图片"快捷方式
         
         imageScrollPane.viewportBoundsProperty().addListener((obs, oldVal, newVal) -> {
             imageFlowPane.setPrefWidth(newVal.getWidth());
@@ -119,7 +117,6 @@ public class MainController {
                 event.consume();
             }
         });
-
         imageFlowPane.setOnMousePressed(event -> hideBlankContextMenu());
         imageAnchorPane.setOnMousePressed(event -> { if (event.getButton() == MouseButton.PRIMARY) hideBlankContextMenu(); });
     }
@@ -137,7 +134,7 @@ public class MainController {
             javafx.scene.control.TreeCell<String> cell = new javafx.scene.control.TreeCell<>() {
                 @Override
                 protected void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
+                    super.updateItem(item, empty);//更新单元格内部的 item 属性和 empty 状态
                     if (empty || item == null) {
                         setText(null);
                         setGraphic(null);
@@ -242,7 +239,7 @@ public class MainController {
         isLoadingMore = false;
         imageFlowPane.getChildren().clear();
 
-        imageService.getExecutor().submit(() -> {
+        imageService.submitImageLoadTask(() -> {
             List<File> visibleFiles = fileRepository.listVisibleFiles(dir);
 
             if (visibleFiles.isEmpty()) {
@@ -416,8 +413,7 @@ public class MainController {
     /** 异步创建图片文件卡片（含缩略图） */
     private void createImageVBoxAsync(File file, Consumer<VBox> callback) {
         vBoxFactory.createImageVBoxAsync(
-                file, callback,
-                imageService.getExecutor(), THUMB_SIZE,
+                file, callback, THUMB_SIZE,
                 selectedVBoxes, vBoxToFile,
                 this::updateTipLabel,
                 () -> openSlideShowForImage(file),
@@ -754,6 +750,6 @@ public class MainController {
     public void shutdown() {
         renderStrategy.stopAll();
         if (directoryTreeService != null) directoryTreeService.shutdown();
-        imageService.clearCache();
+        imageService.shutdown();
     }
 }

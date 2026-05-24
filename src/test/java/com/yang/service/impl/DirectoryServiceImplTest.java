@@ -1,24 +1,17 @@
 package com.yang.service.impl;
 
-import com.yang.repository.FileRepository;
+import com.yang.repository.impl.FileRepositoryImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@ExtendWith(MockitoExtension.class)
 class DirectoryServiceImplTest {
-
-    @Mock
-    private FileRepository fileRepository;
 
     private DirectoryServiceImpl service;
 
@@ -27,7 +20,7 @@ class DirectoryServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new DirectoryServiceImpl(fileRepository);
+        service = new DirectoryServiceImpl(new FileRepositoryImpl());
     }
 
     // === listChildDirectories ===

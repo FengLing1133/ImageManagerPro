@@ -143,7 +143,6 @@ public class VBoxFactory {
     public void createImageVBoxAsync(
             File file,
             Consumer<VBox> callback,
-            java.util.concurrent.ExecutorService imageExecutor,
             int thumbSize,
             Set<VBox> selectedVBoxes,
             Map<VBox, File> vBoxToFile,
@@ -152,15 +151,9 @@ public class VBoxFactory {
             com.yang.service.ImageService imageService,
             ContextMenuBuilder contextMenuBuilder
     ) {
-        String filePath = file.getAbsolutePath();
-        Image cached = imageService.getCachedImage(filePath);
-        if (cached != null) {
-            createImageVBox(file, cached, callback, thumbSize, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage, contextMenuBuilder);
-            return;
-        }
-        imageExecutor.submit(() -> {
+        imageService.submitImageLoadTask(() -> {
             try {
-                Image img = imageService.loadThumbnail(file, thumbSize);
+                Image img = imageService.loadImage(file, thumbSize);
                 if (img != null) {
                     Platform.runLater(() -> createImageVBox(file, img, callback, thumbSize, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage, contextMenuBuilder));
                 }

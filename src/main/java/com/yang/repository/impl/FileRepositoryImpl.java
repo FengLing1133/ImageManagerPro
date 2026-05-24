@@ -101,4 +101,56 @@ public class FileRepositoryImpl implements FileRepository {
                 .map(File::getAbsolutePath)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public boolean isDirectory(File file) {
+        return file.isDirectory();
+    }
+
+    @Override
+    public boolean exists(File file) {
+        return file.exists();
+    }
+
+    @Override
+    public boolean isFile(File file) {
+        return file.isFile();
+    }
+
+    @Override
+    public long getFileSize(File file) {
+        return file.isFile() ? file.length() : 0;
+    }
+
+    /** 列出子目录，过滤隐藏目录，按名称排序 */
+    @Override
+    public List<File> listChildDirectories(File parent) {
+        File[] children = parent.listFiles(File::isDirectory);
+        if (children == null) return Collections.emptyList();
+        return Arrays.stream(children)
+                .filter(this::isVisibleFile)
+                .sorted((f1, f2) -> f1.getName().compareToIgnoreCase(f2.getName()))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public File[] getSystemRoots() {
+        File[] roots = File.listRoots();
+        return roots != null ? roots : new File[0];
+    }
+
+    @Override
+    public File getPicturesDirectory() {
+        String userHome = System.getProperty("user.home");
+        File picturesDir = new File(userHome, "Pictures");
+        if (picturesDir.exists() && picturesDir.isDirectory()) {
+            return picturesDir;
+        }
+        return null;
+    }
+
+    @Override
+    public boolean isHidden(File file) {
+        return file.isHidden();
+    }
 }

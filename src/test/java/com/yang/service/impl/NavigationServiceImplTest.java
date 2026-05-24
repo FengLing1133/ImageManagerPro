@@ -1,5 +1,6 @@
 package com.yang.service.impl;
 
+import com.yang.repository.impl.FileRepositoryImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,7 @@ class NavigationServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new NavigationServiceImpl();
+        service = new NavigationServiceImpl(new FileRepositoryImpl());
         dirA = new File(tempDir, "a");
         dirB = new File(tempDir, "b");
         dirC = new File(tempDir, "c");

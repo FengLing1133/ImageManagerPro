@@ -53,4 +53,44 @@ public interface FileRepository {
      * 获取目录下所有图片文件路径（已排序）
      */
     List<String> getImagePaths(File directory);
+
+    /**
+     * 判断路径是否为已存在的目录
+     */
+    boolean isDirectory(File file);
+
+    /**
+     * 判断路径是否存在
+     */
+    boolean exists(File file);
+
+    /**
+     * 判断路径是否为普通文件
+     */
+    boolean isFile(File file);
+
+    /**
+     * 获取文件大小（字节），非普通文件返回 0
+     */
+    long getFileSize(File file);
+
+    /**
+     * 列出子目录（过滤隐藏目录），按名称排序
+     */
+    List<File> listChildDirectories(File parent);
+
+    /**
+     * 获取系统根目录（盘符）
+     */
+    File[] getSystemRoots();
+
+    /**
+     * 获取用户图片目录，不存在则返回 null
+     */
+    File getPicturesDirectory();
+
+    /**
+     * 判断文件或目录是否隐藏
+     */
+    boolean isHidden(File file);
 }

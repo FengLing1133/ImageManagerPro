@@ -7,7 +7,6 @@ import javafx.scene.image.Image;
 import org.springframework.stereotype.Service;
 import java.io.File;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 /** 图片业务逻辑层实现 */
 @Service
@@ -39,13 +38,10 @@ public class ImageServiceImpl implements ImageService {
         return fileRepository.getImagePaths(directory);
     }
 
-    /** 根据扩展名判断是否为支持的图片格式 */
+    /** 根据扩展名判断是否为支持的图片格式，委托给 FileRepository */
     @Override
     public boolean isImageFile(File file) {
-        String lower = file.getName().toLowerCase();
-        return lower.endsWith(".jpg") || lower.endsWith(".jpeg")
-                || lower.endsWith(".png") || lower.endsWith(".gif")
-                || lower.endsWith(".bmp");
+        return fileRepository.isImageFile(file);
     }
 
     /** 清空图片缓存 */
@@ -54,21 +50,22 @@ public class ImageServiceImpl implements ImageService {
         imageRepository.clearCache();
     }
 
-    /** 获取图片加载线程池 */
+    /** 缓存检查 + 加载一体化 */
     @Override
-    public ExecutorService getExecutor() {
-        return imageRepository.getExecutor();
+    public Image loadImage(File file, int thumbSize) {
+        return imageRepository.loadThumbnail(file, thumbSize);
     }
 
-    /** 从缓存中获取图片 */
+    /** 提交图片加载任务到后台线程池 */
     @Override
-    public Image getCachedImage(String filePath) {
-        return imageRepository.getCachedImage(filePath);
+    public void submitImageLoadTask(Runnable task) {
+        imageRepository.getExecutor().submit(task);
     }
 
-    /** 将图片存入缓存 */
+    /** 关闭线程池和清理资源 */
     @Override
-    public void cacheImage(String filePath, Image image) {
-        imageRepository.cacheImage(filePath, image);
+    public void shutdown() {
+        imageRepository.shutdown();
+        imageRepository.clearCache();
     }
 }
