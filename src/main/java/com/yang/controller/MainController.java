@@ -52,11 +52,11 @@ public class MainController {
     /** loadToken 单调递增，异步回调比对不匹配则丢弃，防止目录切换竞态 */
     private long activeLoadToken = 0;
     private static final int INITIAL_BATCH_SIZE = 120;
-    private static final int LOAD_MORE_BATCH_SIZE = 60;
+    private static final int LOAD_MORE_BATCH_SIZE = 90;
     private List<File> pendingImageFiles = new ArrayList<>();
     private List<File> pendingNonImageFiles = new ArrayList<>();
     private volatile boolean isLoadingMore = false;
-    private static final int BUILD_BATCH_SIZE = 50;
+    private static final int BUILD_BATCH_SIZE = 30;
     private final Deque<Runnable> pendingBuildTasks = new ArrayDeque<>();
     private int nextInsertIndex = 0;
 
@@ -212,13 +212,13 @@ public class MainController {
             if (resolved != null) {
                 navigateToDirectory(resolved, true);
             } else {
-                pathField.setStyle("-fx-background-color: #fff4f4; -fx-text-fill: #b92d2d; -fx-border-color: #efb4b4; -fx-border-width: 1; -fx-background-radius: 10; -fx-border-radius: 10;");
+                pathField.getStyleClass().add("path-field-error");
                 pathField.setText("路径无效");
                 PauseTransition pause = new PauseTransition(Duration.seconds(1));
                 pause.setOnFinished(e -> {
                     File cur = navigationService.getCurrentDirectory();
                     if (cur != null) pathField.setText(cur.getAbsolutePath());
-                    pathField.setStyle("");
+                    pathField.getStyleClass().remove("path-field-error");
                 });
                 pause.play();
             }
@@ -238,10 +238,8 @@ public class MainController {
         pendingNonImageFiles.clear();
         isLoadingMore = false;
         imageFlowPane.getChildren().clear();
-
         imageService.submitImageLoadTask(() -> {
             List<File> visibleFiles = fileRepository.listVisibleFiles(dir);
-
             if (visibleFiles.isEmpty()) {
                 Platform.runLater(() -> {
                     if (isStaleLoad(loadToken, dir)) return;
@@ -253,7 +251,6 @@ public class MainController {
                 });
                 return;
             }
-
             List<File> imageFiles = new ArrayList<>();
             List<File> nonImageFiles = new ArrayList<>();
             Map<File, Long> localSizeCache = new HashMap<>();
@@ -276,7 +273,6 @@ public class MainController {
             final long finalTotalSize = totalSize;
             final Map<File, Long> finalSizeCache = localSizeCache;
             final boolean enableHoverEffects = visibleFiles.size() <= HOVER_EFFECT_THRESHOLD;
-
             Platform.runLater(() -> {
                 if (isStaleLoad(loadToken, dir)) return;
                 emptyTipLabel.setVisible(false);
@@ -304,7 +300,6 @@ public class MainController {
                     }));
                     nextInsertIndex++;
                 }
-
                 for (File imageFile : initialImage) {
                     int expectedIndex = nextInsertIndex++;
                     pendingBuildTasks.addLast(() -> createImageVBoxAsync(imageFile, vBox -> {
@@ -312,7 +307,6 @@ public class MainController {
                         addVBoxToFlowPaneAt(vBox, expectedIndex);
                     }));
                 }
-
                 renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, () -> isLoadingMore = false);
                 updateTipLabel();
             });
@@ -342,13 +336,12 @@ public class MainController {
                 ? imageScrollPane.getViewportBounds().getHeight() : 0;
         imageAnchorPane.setPrefHeight(Math.max(totalH, viewportH));
     }
-
     /** 是否还有未加载的文件 */
     private boolean hasMoreFiles() {
         return !pendingNonImageFiles.isEmpty() || !pendingImageFiles.isEmpty();
     }
 
-    /** 滚动触底时从待加载队列取最多 60 个文件继续加载 */
+    /** 滚动触底时从待加载队列取最多 90 个文件继续加载 */
     private void loadMoreFiles() {
         if (!hasMoreFiles()) return;
         isLoadingMore = true;
@@ -358,11 +351,9 @@ public class MainController {
             return;
         }
         long loadToken = activeLoadToken;
-
         List<File> batchNonImage = new ArrayList<>();
         List<File> batchImage = new ArrayList<>();
         int remaining = LOAD_MORE_BATCH_SIZE;
-
         while (remaining > 0 && !pendingNonImageFiles.isEmpty()) {
             batchNonImage.add(pendingNonImageFiles.removeFirst());
             remaining--;
@@ -371,12 +362,10 @@ public class MainController {
             batchImage.add(pendingImageFiles.removeFirst());
             remaining--;
         }
-
         if (batchNonImage.isEmpty() && batchImage.isEmpty()) {
             isLoadingMore = false;
             return;
         }
-
         for (File file : batchNonImage) {
             pendingBuildTasks.addLast(() -> createVBoxAsync(file, vBox -> {
                 if (isStaleLoad(loadToken, currentDir)) return;
@@ -384,7 +373,6 @@ public class MainController {
             }));
             nextInsertIndex++;
         }
-
         for (File imageFile : batchImage) {
             int expectedIndex = nextInsertIndex++;
             pendingBuildTasks.addLast(() -> createImageVBoxAsync(imageFile, vBox -> {
@@ -392,7 +380,6 @@ public class MainController {
                 addVBoxToFlowPaneAt(vBox, expectedIndex);
             }));
         }
-
         renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, () -> isLoadingMore = false);
     }
 
@@ -495,7 +482,34 @@ public class MainController {
             pathField.setText(prev.getAbsolutePath());
             loadImagesToFlowPane(prev);
             directoryTreeService.expandAndSelectInTree(prev.getAbsolutePath());
+        } else if (navigationService.isAtDriveRoot()) {
+            showQuickEntry();
         }
+    }
+
+    /** 向上按钮：返回上级目录，根目录时显示快捷入口 */
+    @FXML
+    public void onUp() {
+        File parent = navigationService.goUp();
+        if (parent != null) {
+            pathField.setText(parent.getAbsolutePath());
+            loadImagesToFlowPane(parent);
+            directoryTreeService.expandAndSelectInTree(parent.getAbsolutePath());
+        } else if (navigationService.isAtDriveRoot()) {
+            showQuickEntry();
+        }
+    }
+
+    /** 显示快捷入口视图（磁盘卡片和"我的图片"） */
+    private void showQuickEntry() {
+        navigationService.setCurrentDirectory(null);
+        pathField.clear();
+        imageFlowPane.getChildren().clear();
+        selectedVBoxes.clear();
+        vBoxToFile.clear();
+        emptyTipLabel.setVisible(false);
+        emptyTipLabel.setManaged(false);
+        initFlowPaneHint();
     }
 
     /** 前进按钮 */
@@ -570,29 +584,8 @@ public class MainController {
             showAlert(Alert.AlertType.WARNING, "未找到图片", "当前目录中没有可播放的图片");
             return;
         }
-        int index = indexOfPath(imagePaths, imageFile);
-        System.out.println("[DEBUG] 双击图片: " + imageFile.getAbsolutePath());
-        System.out.println("[DEBUG] indexOf结果: " + index + ", imagePaths数量: " + imagePaths.size());
-        if (index < 0) {
-            System.out.println("[DEBUG] indexOf失败! 首个路径: " + imagePaths.getFirst());
-            System.out.println("[DEBUG] 匹配尝试: " + imagePaths.indexOf(imageFile.getAbsolutePath()));
-        }
+        int index = imagePaths.indexOf(imageFile.getAbsolutePath());
         showSlideShowWindow(imagePaths, Math.max(index, 0));
-    }
-
-    /** 在路径列表中查找文件索引，先尝试精确匹配，失败则按文件名匹配 */
-    private int indexOfPath(List<String> imagePaths, File imageFile) {
-        // 先尝试精确路径匹配
-        int idx = imagePaths.indexOf(imageFile.getAbsolutePath());
-        if (idx >= 0) return idx;
-        // 精确匹配失败，按文件名匹配
-        String targetName = imageFile.getName();
-        for (int i = 0; i < imagePaths.size(); i++) {
-            if (imagePaths.get(i).endsWith(File.separator + targetName)) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     /** 清空选中状态 */
@@ -677,7 +670,7 @@ public class MainController {
                 }
             });
         } else {
-            // 多选：批量重命名，按选中顺序添加数字后缀
+            // 多选：批量重命名，按顺序添加数字后缀
             File firstFile = vBoxToFile.get(orderedSelected.getFirst());
             if (firstFile == null) return;
             TextInputDialog dialog = new TextInputDialog(firstFile.getName());

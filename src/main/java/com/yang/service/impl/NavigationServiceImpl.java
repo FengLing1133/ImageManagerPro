@@ -103,6 +103,12 @@ public class NavigationServiceImpl implements NavigationService {
         }
     }
 
+    /** 当前是否在驱动器根目录（如 C:\、D:\） */
+    @Override
+    public boolean isAtDriveRoot() {
+        return currentDirectory != null && currentDirectory.getParentFile() == null;
+    }
+
     /** 解析路径字符串为有效的目录 File，无效则返回 null */
     @Override
     public File resolvePath(String path) {
