@@ -557,8 +557,7 @@ public class MainController {
             FXMLLoader loader = new FXMLLoader(fxmlUrl);
             Parent slideRoot = loader.load();
             SlideShowController slideController = loader.getController();
-            slideController.setImagePaths(imagePaths);
-            if (startIndex > 0) slideController.setCurrentIndex(startIndex);
+            slideController.setImagePaths(imagePaths, startIndex);
             Stage slideStage = new Stage();
             slideStage.setTitle("幻灯片播放");
             slideStage.setScene(new javafx.scene.Scene(slideRoot, 1000, 700));
