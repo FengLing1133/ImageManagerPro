@@ -189,14 +189,14 @@ class FileOperationServiceImplTest {
         File img = mock(File.class);
         File txt = mock(File.class);
 
-        when(img.isFile()).thenReturn(true);
-        when(img.exists()).thenReturn(true);
-        when(img.length()).thenReturn(1024L);
-        when(txt.isFile()).thenReturn(true);
-        when(txt.exists()).thenReturn(true);
-        when(txt.length()).thenReturn(500L);
-
+        when(fileRepository.exists(img)).thenReturn(true);
+        when(fileRepository.isFile(img)).thenReturn(true);
+        when(fileRepository.getFileSize(img)).thenReturn(1024L);
         when(fileRepository.isImageFile(img)).thenReturn(true);
+
+        when(fileRepository.exists(txt)).thenReturn(true);
+        when(fileRepository.isFile(txt)).thenReturn(true);
+        when(fileRepository.getFileSize(txt)).thenReturn(500L);
         when(fileRepository.isImageFile(txt)).thenReturn(false);
 
         long[] stats = service.calculateDirStats(List.of(img, txt));
@@ -209,9 +209,9 @@ class FileOperationServiceImplTest {
     @DisplayName("calculateDirStats: null文件跳过")
     void calculateDirStats_skipsNullFiles() {
         File img = mock(File.class);
-        when(img.isFile()).thenReturn(true);
-        when(img.exists()).thenReturn(true);
-        when(img.length()).thenReturn(100L);
+        when(fileRepository.exists(img)).thenReturn(true);
+        when(fileRepository.isFile(img)).thenReturn(true);
+        when(fileRepository.getFileSize(img)).thenReturn(100L);
         when(fileRepository.isImageFile(img)).thenReturn(true);
 
         long[] stats = service.calculateDirStats(Arrays.asList(null, img));
@@ -224,7 +224,7 @@ class FileOperationServiceImplTest {
     @DisplayName("calculateDirStats: 不存在的文件跳过")
     void calculateDirStats_skipsNonExistentFiles() {
         File file = mock(File.class);
-        when(file.exists()).thenReturn(false);
+        when(fileRepository.exists(file)).thenReturn(false);
 
         long[] stats = service.calculateDirStats(List.of(file));
 

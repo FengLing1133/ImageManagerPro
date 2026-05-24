@@ -1,5 +1,6 @@
 package com.yang.service.impl;
 
+import com.yang.repository.FileRepository;
 import com.yang.service.NavigationService;
 import org.springframework.stereotype.Service;
 import java.io.File;
@@ -9,16 +10,22 @@ import java.util.Stack;
 @Service
 public class NavigationServiceImpl implements NavigationService {
 
+    private final FileRepository fileRepository;
+
     private File currentDirectory;
     /** 后退历史栈 */
     private final Stack<File> backStack = new Stack<>();
     /** 前进历史栈 */
     private final Stack<File> forwardStack = new Stack<>();
 
+    public NavigationServiceImpl(FileRepository fileRepository) {
+        this.fileRepository = fileRepository;
+    }
+
     /** 导航到指定目录，将当前目录压入后退栈并清空前进栈 */
     @Override
     public boolean navigateTo(File dir) {
-        if (dir == null || !dir.isDirectory()) return false;
+        if (dir == null || !fileRepository.isDirectory(dir)) return false;
         if (dir.equals(currentDirectory)) return false;
         if (currentDirectory != null) {
             backStack.push(currentDirectory);
@@ -91,7 +98,7 @@ public class NavigationServiceImpl implements NavigationService {
     /** 将目录压入后退栈（用于快捷方式跳转时保存历史） */
     @Override
     public void pushBackStack(File dir) {
-        if (dir != null && dir.isDirectory()) {
+        if (dir != null && fileRepository.isDirectory(dir)) {
             backStack.push(dir);
         }
     }
@@ -101,7 +108,7 @@ public class NavigationServiceImpl implements NavigationService {
     public File resolvePath(String path) {
         if (path == null || path.trim().isEmpty()) return null;
         File file = new File(path);
-        if (file.exists() && file.isDirectory()) {
+        if (fileRepository.exists(file) && fileRepository.isDirectory(file)) {
             return file;
         }
         return null;

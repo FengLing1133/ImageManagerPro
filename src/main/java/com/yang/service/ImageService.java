@@ -3,7 +3,6 @@ package com.yang.service;
 import javafx.scene.image.Image;
 import java.io.File;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 /**
  * 图片业务逻辑层
@@ -40,17 +39,17 @@ public interface ImageService {
     void clearCache();
 
     /**
-     * 获取后台图片加载线程池
+     * 缓存检查 + 加载一体化：优先从缓存获取，未命中则加载缩略图并缓存
      */
-    ExecutorService getExecutor();
+    Image loadImage(File file, int thumbSize);
 
     /**
-     * 从缓存获取图片
+     * 提交图片加载任务到后台线程池
      */
-    Image getCachedImage(String filePath);
+    void submitImageLoadTask(Runnable task);
 
     /**
-     * 将图片放入缓存
+     * 关闭线程池和清理资源
      */
-    void cacheImage(String filePath, Image image);
+    void shutdown();
 }

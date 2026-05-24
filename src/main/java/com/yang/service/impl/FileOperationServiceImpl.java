@@ -72,9 +72,9 @@ public class FileOperationServiceImpl implements FileOperationService {
         long imageCount = 0;
         long totalSize = 0;
         for (File file : files) {
-            if (file == null || !file.exists()) continue;
-            if (file.isFile()) {
-                totalSize += file.length();
+            if (file == null || !fileRepository.exists(file)) continue;
+            if (fileRepository.isFile(file)) {
+                totalSize += fileRepository.getFileSize(file);
                 if (fileRepository.isImageFile(file)) {
                     imageCount++;
                 }
