@@ -35,15 +35,15 @@ public class MainController {
     @FXML private TextField pathField;
     @FXML private Label emptyTipLabel;
 
-    private final NavigationService navigationService;
-    private final FileOperationService fileOperationService;
-    private final ImageService imageService;
-    private final DirectoryService directoryService;
-    private final FileRepository fileRepository;
-    private final RenderStrategy renderStrategy;
+    private final NavigationService navigationService; //导航服务业务逻辑层 封装目录导航、历史栈、路径解析等业务逻辑
+    private final FileOperationService fileOperationService; //文件操作业务逻辑层 处理文件的增删改查业务逻辑
+    private final ImageService imageService; //图片业务逻辑层 封装图片加载、缓存管理、缩略图生成等业务逻辑
+    private final DirectoryService directoryService; //目录服务业务逻辑层 封装目录树构建、子目录加载等业务逻辑
+    private final FileRepository fileRepository; //文件系统数据访问层 封装所有文件系统读写操作，隔离 I0 细节
+    private final RenderStrategy renderStrategy; //渲染策略接口 决定如何将构建好的 UI 卡片渲染到FLowPane
 
     private final VBoxFactory vBoxFactory = new VBoxFactory();
-    private DirectoryTreeService directoryTreeService;
+    private DirectoryTreeService directoryTreeService; //目录树服务，管理 TreeView的异步加载、路径展开和状态追踪
 
     // 选中模型
     private final Set<VBox> selectedVBoxes = new HashSet<>();
@@ -66,10 +66,6 @@ public class MainController {
     private static final int BUILD_BATCH_SIZE = 50;
     private final Deque<Runnable> pendingBuildTasks = new ArrayDeque<>();
     private int nextInsertIndex = 0;
-
-    // 卡片样式
-    private static final String NORMAL_STYLE = "-fx-alignment: center; -fx-border-color: #E5E7EB; -fx-border-width: 1.5px; -fx-background-color: #FFFFFF; -fx-background-radius: 8; -fx-border-radius: 8;";
-    private static final String SELECTED_STYLE = "-fx-alignment: center; -fx-border-color: #06B6D4; -fx-border-width: 2px; -fx-background-color: #ECFEFF; -fx-background-radius: 8; -fx-border-radius: 8; -fx-effect: dropshadow(gaussian, rgba(6, 182, 212, 0.15), 10, 0, 0, 2);";
 
     private ContextMenu blankContextMenu = null;
     private static final int THUMB_SIZE = 120;
@@ -320,9 +316,7 @@ public class MainController {
                     }));
                 }
 
-                renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, () -> {
-                    isLoadingMore = false;
-                });
+                renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, () -> isLoadingMore = false);
                 updateTipLabel();
             });
         });
@@ -373,11 +367,11 @@ public class MainController {
         int remaining = LOAD_MORE_BATCH_SIZE;
 
         while (remaining > 0 && !pendingNonImageFiles.isEmpty()) {
-            batchNonImage.add(pendingNonImageFiles.remove(0));
+            batchNonImage.add(pendingNonImageFiles.removeFirst());
             remaining--;
         }
         while (remaining > 0 && !pendingImageFiles.isEmpty()) {
-            batchImage.add(pendingImageFiles.remove(0));
+            batchImage.add(pendingImageFiles.removeFirst());
             remaining--;
         }
 
@@ -402,9 +396,7 @@ public class MainController {
             }));
         }
 
-        renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, () -> {
-            isLoadingMore = false;
-        });
+        renderStrategy.startBuildPipeline(pendingBuildTasks, BUILD_BATCH_SIZE, () -> isLoadingMore = false);
     }
 
     /** 判断异步加载是否已过期（用户已切换目录），过期则丢弃结果 */
@@ -416,7 +408,6 @@ public class MainController {
     private void createVBoxAsync(File file, Consumer<VBox> callback) {
         vBoxFactory.createVBoxAsync(
                 file, callback, selectedVBoxes, vBoxToFile,
-                NORMAL_STYLE, SELECTED_STYLE,
                 this::updateTipLabel,
                 () -> navigateToDirectory(file, true)
         );
@@ -427,7 +418,6 @@ public class MainController {
         vBoxFactory.createImageVBoxAsync(
                 file, callback,
                 imageService.getExecutor(), THUMB_SIZE,
-                NORMAL_STYLE, SELECTED_STYLE,
                 selectedVBoxes, vBoxToFile,
                 this::updateTipLabel,
                 () -> openSlideShowForImage(file),
@@ -451,8 +441,7 @@ public class MainController {
     /** 创建快捷方式卡片，点击导航到目标目录并同步目录树 */
     private void createShortcutVBox(File targetDir, String displayName) {
         vBoxFactory.createShortcutVBox(
-                displayName, THUMB_SIZE, NORMAL_STYLE, SELECTED_STYLE,
-                selectedVBoxes, imageFlowPane, this::updateTipLabel,
+                displayName, THUMB_SIZE, selectedVBoxes, imageFlowPane, this::updateTipLabel,
                 () -> {
                     List<File> ancestors = new ArrayList<>();
                     File parent = targetDir.getParentFile();
@@ -589,7 +578,7 @@ public class MainController {
         System.out.println("[DEBUG] 双击图片: " + imageFile.getAbsolutePath());
         System.out.println("[DEBUG] indexOf结果: " + index + ", imagePaths数量: " + imagePaths.size());
         if (index < 0) {
-            System.out.println("[DEBUG] indexOf失败! 首个路径: " + imagePaths.get(0));
+            System.out.println("[DEBUG] indexOf失败! 首个路径: " + imagePaths.getFirst());
             System.out.println("[DEBUG] 匹配尝试: " + imagePaths.indexOf(imageFile.getAbsolutePath()));
         }
         showSlideShowWindow(imagePaths, Math.max(index, 0));
@@ -612,7 +601,10 @@ public class MainController {
 
     /** 清空选中状态 */
     private void clearSelection() {
-        selectedVBoxes.forEach(v -> v.setStyle(NORMAL_STYLE));
+        selectedVBoxes.forEach(v -> {
+            v.getStyleClass().remove("card-selected");
+            if (!v.getStyleClass().contains("card-normal")) v.getStyleClass().add("card-normal");
+        });
         selectedVBoxes.clear();
         updateTipLabel();
     }
@@ -671,7 +663,7 @@ public class MainController {
 
         if (orderedSelected.size() == 1) {
             // 单选：保持原有行为
-            VBox vBox = orderedSelected.get(0);
+            VBox vBox = orderedSelected.getFirst();
             File file = vBoxToFile.get(vBox);
             if (file == null) return;
             TextInputDialog dialog = new TextInputDialog(file.getName());
@@ -690,7 +682,7 @@ public class MainController {
             });
         } else {
             // 多选：批量重命名，按选中顺序添加数字后缀
-            File firstFile = vBoxToFile.get(orderedSelected.get(0));
+            File firstFile = vBoxToFile.get(orderedSelected.getFirst());
             if (firstFile == null) return;
             TextInputDialog dialog = new TextInputDialog(firstFile.getName());
             dialog.setTitle("批量重命名");
@@ -698,7 +690,6 @@ public class MainController {
             dialog.setContentText("将重命名 " + orderedSelected.size() + " 个文件");
             dialog.showAndWait().ifPresent(baseName -> {
                 if (baseName.trim().isEmpty()) return;
-                String ext = getExtension(firstFile.getName());
                 String baseNameNoExt = baseName.contains(".") ? baseName.substring(0, baseName.lastIndexOf('.')) : baseName;
                 int successCount = 0;
                 for (int i = 0; i < orderedSelected.size(); i++) {

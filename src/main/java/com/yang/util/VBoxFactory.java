@@ -51,8 +51,23 @@ public class VBoxFactory {
         this.hoverEffectsEnabled = enabled;
     }
 
+    // 切换卡片选中状态
+    private static void applyNormalStyle(VBox vBox) {
+        vBox.getStyleClass().remove("card-selected");
+        if (!vBox.getStyleClass().contains("card-normal")) {
+            vBox.getStyleClass().add("card-normal");
+        }
+    }
+
+    private static void applySelectedStyle(VBox vBox) {
+        vBox.getStyleClass().remove("card-normal");
+        if (!vBox.getStyleClass().contains("card-selected")) {
+            vBox.getStyleClass().add("card-selected");
+        }
+    }
+
     // 通用 VBox 创建方法（文件/文件夹/图片）
-    private VBox createBaseVBox(ImageView imageView, String name, int width, String normalStyle) {
+    private VBox createBaseVBox(ImageView imageView, String name, int width) {
         imageView.setFitWidth(width);
         imageView.setFitHeight(width);
         imageView.setPreserveRatio(true);
@@ -64,7 +79,7 @@ public class VBoxFactory {
         VBox vBox = new VBox(5, imageView, nameLabel);
         vBox.getStyleClass().add("card");
         vBox.setPadding(CARD_PADDING);
-        vBox.setStyle(normalStyle);
+        applyNormalStyle(vBox);
         if (hoverEffectsEnabled) {
             setupCardHoverEffect(vBox);
         }
@@ -77,14 +92,12 @@ public class VBoxFactory {
             Consumer<VBox> callback,
             Set<VBox> selectedVBoxes,
             Map<VBox, File> vBoxToFile,
-            String normalStyle,
-            String selectedStyle,
             Runnable updateTipLabel,
             Runnable onDoubleClickDir
     ) {
         ImageView imageView = createFileTypeIcon(file.isDirectory());
-        VBox vBox = createBaseVBox(imageView, file.getName(), 120, normalStyle);
-        setupFileVBoxSelection(vBox, normalStyle, selectedStyle, selectedVBoxes, updateTipLabel);
+        VBox vBox = createBaseVBox(imageView, file.getName(), 120);
+        setupFileVBoxSelection(vBox, selectedVBoxes, updateTipLabel);
         vBox.setOnMouseClicked(event -> {
             if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2 && file.isDirectory()) {
                 if (onDoubleClickDir != null) onDoubleClickDir.run();
@@ -101,8 +114,6 @@ public class VBoxFactory {
             Image image,
             Consumer<VBox> callback,
             int thumbSize,
-            String normalStyle,
-            String selectedStyle,
             Set<VBox> selectedVBoxes,
             Map<VBox, File> vBoxToFile,
             Runnable updateTipLabel,
@@ -110,8 +121,8 @@ public class VBoxFactory {
             ContextMenuBuilder contextMenuBuilder
     ) {
         ImageView imageView = new ImageView(image);
-        VBox vBox = createBaseVBox(imageView, file.getName(), thumbSize, normalStyle);
-        setupImageVBox(vBox, normalStyle, selectedStyle, selectedVBoxes, updateTipLabel, onDoubleClickImage);
+        VBox vBox = createBaseVBox(imageView, file.getName(), thumbSize);
+        setupImageVBox(vBox, selectedVBoxes, updateTipLabel, onDoubleClickImage);
         if (contextMenuBuilder != null) {
             vBox.setOnContextMenuRequested(event -> {
                 Object old = vBox.getUserData();
@@ -134,8 +145,6 @@ public class VBoxFactory {
             Consumer<VBox> callback,
             java.util.concurrent.ExecutorService imageExecutor,
             int thumbSize,
-            String normalStyle,
-            String selectedStyle,
             Set<VBox> selectedVBoxes,
             Map<VBox, File> vBoxToFile,
             Runnable updateTipLabel,
@@ -146,14 +155,14 @@ public class VBoxFactory {
         String filePath = file.getAbsolutePath();
         Image cached = imageService.getCachedImage(filePath);
         if (cached != null) {
-            createImageVBox(file, cached, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage, contextMenuBuilder);
+            createImageVBox(file, cached, callback, thumbSize, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage, contextMenuBuilder);
             return;
         }
         imageExecutor.submit(() -> {
             try {
                 Image img = imageService.loadThumbnail(file, thumbSize);
                 if (img != null) {
-                    Platform.runLater(() -> createImageVBox(file, img, callback, thumbSize, normalStyle, selectedStyle, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage, contextMenuBuilder));
+                    Platform.runLater(() -> createImageVBox(file, img, callback, thumbSize, selectedVBoxes, vBoxToFile, updateTipLabel, onDoubleClickImage, contextMenuBuilder));
                 }
             } catch (Exception e) {
                 System.out.println("⚠️ 图片加载失败：" + file.getName());
@@ -164,8 +173,6 @@ public class VBoxFactory {
     // 配置图片VBox的事件和菜单
     private void setupImageVBox(
             VBox vBox,
-            String normalStyle,
-            String selectedStyle,
             Set<VBox> selectedVBoxes,
             Runnable updateTipLabel,
             Runnable onDoubleClickImage
@@ -179,11 +186,11 @@ public class VBoxFactory {
                 event.consume();
             }
         });
-        setupFileVBoxSelection(vBox, normalStyle, selectedStyle, selectedVBoxes, updateTipLabel);
+        setupFileVBoxSelection(vBox, selectedVBoxes, updateTipLabel);
     }
 
     // 统一的选中逻辑：左右键都可选中，仅 Ctrl+左键启用多选切换
-    private void setupFileVBoxSelection(VBox vBox, String normalStyle, String selectedStyle, Set<VBox> selectedVBoxes, Runnable updateTipLabel) {
+    private void setupFileVBoxSelection(VBox vBox, Set<VBox> selectedVBoxes, Runnable updateTipLabel) {
         vBox.setOnMousePressed(event -> {
             if (event.getButton() != MouseButton.PRIMARY && event.getButton() != MouseButton.SECONDARY) {
                 return;
@@ -192,18 +199,18 @@ public class VBoxFactory {
             if (ctrlMultiSelect) {
                 if (!selectedVBoxes.contains(vBox)) {
                     selectedVBoxes.add(vBox);
-                    vBox.setStyle(selectedStyle);
+                    applySelectedStyle(vBox);
                 } else {
                     selectedVBoxes.remove(vBox);
-                    vBox.setStyle(normalStyle);
+                    applyNormalStyle(vBox);
                 }
             } else {
                 // 左键或右键未选中时都只选中当前项
                 if (!selectedVBoxes.contains(vBox)) {
-                    selectedVBoxes.forEach(v -> v.setStyle(normalStyle));
+                    selectedVBoxes.forEach(VBoxFactory::applyNormalStyle);
                     selectedVBoxes.clear();
                     selectedVBoxes.add(vBox);
-                    vBox.setStyle(selectedStyle);
+                    applySelectedStyle(vBox);
                 }
             }
             if (updateTipLabel != null) updateTipLabel.run();
@@ -284,22 +291,20 @@ public class VBoxFactory {
     public void createShortcutVBox(
             String displayName,
             int thumbSize,
-            String normalStyle,
-            String selectedStyle,
             Set<VBox> selectedVBoxes,
             FlowPane imageFlowPane,
             Runnable updateTipLabel,
             Runnable onDoubleClickDir
     ) {
         ImageView imageView = createFileTypeIcon(true);
-        VBox vBox = createBaseVBox(imageView, displayName, thumbSize, normalStyle);
+        VBox vBox = createBaseVBox(imageView, displayName, thumbSize);
         (vBox.getChildren().get(1)).setStyle("-fx-font-size: 12px; -fx-alignment: center; -fx-text-alignment: center; -fx-font-weight: bold;");
         vBox.setOnMouseClicked(event -> {
             if (event.getClickCount() == 1) {
-                selectedVBoxes.forEach(v -> v.setStyle(normalStyle));
+                selectedVBoxes.forEach(VBoxFactory::applyNormalStyle);
                 selectedVBoxes.clear();
                 selectedVBoxes.add(vBox);
-                vBox.setStyle(selectedStyle);
+                applySelectedStyle(vBox);
                 if (updateTipLabel != null) updateTipLabel.run();
             } else if (event.getClickCount() == 2) {
                 if (onDoubleClickDir != null) onDoubleClickDir.run();
