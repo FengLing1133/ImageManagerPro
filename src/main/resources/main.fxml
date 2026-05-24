@@ -41,6 +41,15 @@
                         </ImageView>
                     </graphic>
                 </Button>
+                <Button fx:id="btnUp" onAction="#onUp" prefWidth="40.0" prefHeight="36.0" styleClass="button toolbar-btn">
+                    <graphic>
+                        <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                            <image>
+                                <Image url="@icons/up.png"/>
+                            </image>
+                        </ImageView>
+                    </graphic>
+                </Button>
                 <TextField fx:id="pathField" text="" promptText="输入路径..."
                            HBox.hgrow="ALWAYS" prefWidth="800.0" prefHeight="40.0"/>
             </children>

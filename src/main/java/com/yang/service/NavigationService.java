@@ -69,4 +69,9 @@ public interface NavigationService {
      * @return 有效的目录 File，无效返回 null
      */
     File resolvePath(String path);
+
+    /**
+     * 当前是否在驱动器根目录（如 C:\、D:\）
+     */
+    boolean isAtDriveRoot();
 }

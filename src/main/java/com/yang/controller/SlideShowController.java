@@ -48,16 +48,13 @@ public class SlideShowController {
     /** 由 FXMLLoader 自动调用，初始化控件配置、事件绑定和自动播放定时器 */
     @FXML
     public void initialize() {
-        slideImageView.setPreserveRatio(true);
-        slideImageView.setSmooth(true);
-        slideImageView.setCache(false);
-
+        slideImageView.setPreserveRatio(true); // 保持图片宽高比
+        slideImageView.setSmooth(true);  // 启用平滑缩放
+        slideImageView.setCache(false);  // 禁用缓存，避免内存泄漏和过多内存占用
         playTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> nextImage()));
         playTimeline.setCycleCount(Timeline.INDEFINITE);
-
         stackPane.widthProperty().addListener((obs, oldVal, newVal) -> fitImageToWindow());
         stackPane.heightProperty().addListener((obs, oldVal, newVal) -> fitImageToWindow());
-
         // 滚轮缩放：上滚放大，下滚缩小，范围 [0.1, 10.0]
         stackPane.setOnScroll(event -> {
             if (slideImageView.getImage() == null) return;
@@ -69,7 +66,6 @@ public class SlideShowController {
             }
             applyZoom();
         });
-
         // 鼠标拖拽平移
         stackPane.setOnMousePressed(event -> {
             if (slideImageView.getImage() == null) return;
@@ -120,16 +116,6 @@ public class SlideShowController {
             pageLabel.setText((currentIndex + 1) + "/" + this.imagePaths.size());
             loadImage(this.imagePaths.get(currentIndex));
         } else {
-            pageLabel.setText("0/0");
-            slideImageView.setImage(null);
-        }
-    }
-
-    /** 仅设置图片路径列表，不加载图片（配合 setCurrentIndex 使用，避免竞态） */
-    public void setImagePathsOnly(List<String> imagePaths) {
-        this.imagePaths = imagePaths == null ? null : new ArrayList<>(imagePaths);
-        this.currentIndex = 0;
-        if (this.imagePaths == null || this.imagePaths.isEmpty()) {
             pageLabel.setText("0/0");
             slideImageView.setImage(null);
         }
