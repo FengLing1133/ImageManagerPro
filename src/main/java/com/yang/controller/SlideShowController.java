@@ -100,31 +100,23 @@ public class SlideShowController {
         // 只缩小不放大，取宽高方向较小的缩放比
         double scale = Math.min(1.0, Math.min(availableWidth / imgWidth, availableHeight / imgHeight));
         baseScale = scale;
-        zoomScale = 1.0;
-
+        zoomScale = 1.0; //切换新图片时应该重置用户的缩放状态
         slideImageView.setFitWidth(imgWidth * scale);
         slideImageView.setFitHeight(imgHeight * scale);
         slideImageView.setTranslateX(0);
         slideImageView.setTranslateY(0);
     }
 
-    /** 设置图片路径列表，自动重置到第一张并显示 */
-    public void setImagePaths(List<String> imagePaths) {
+    /** 设置图片路径列表，从指定索引开始显示（默认从第一张开始） */
+    public void setImagePaths(List<String> imagePaths, int startIndex) {
         this.imagePaths = imagePaths == null ? null : new ArrayList<>(imagePaths);
-        this.currentIndex = 0;
-        if (this.imagePaths != null && !this.imagePaths.isEmpty()) {
-            pageLabel.setText((currentIndex + 1) + "/" + this.imagePaths.size());
-            loadImage(this.imagePaths.get(currentIndex));
-        } else {
+        if (this.imagePaths == null || this.imagePaths.isEmpty()) {
+            this.currentIndex = 0;
             pageLabel.setText("0/0");
             slideImageView.setImage(null);
+            return;
         }
-    }
-
-    /** 设置当前图片索引，自动边界保护 */
-    public void setCurrentIndex(int index) {
-        if (imagePaths == null || imagePaths.isEmpty()) return;
-        this.currentIndex = Math.max(0, Math.min(index, imagePaths.size() - 1));
+        this.currentIndex = Math.max(0, Math.min(startIndex, this.imagePaths.size() - 1));
         loadImage(imagePaths.get(currentIndex));
         pageLabel.setText((currentIndex + 1) + "/" + imagePaths.size());
     }
@@ -138,17 +130,14 @@ public class SlideShowController {
                         "文件不存在：" + imagePath, getWindow());
                 return;
             }
-
             // 同步加载图片，避免 JavaFX 缓存导致 progress 监听器不触发的问题
             Image image = new Image(imageFile.toURI().toString(), false);
-
             if (image.isError()) {
                 AlterUtil.showAlert(Alert.AlertType.ERROR, "图片加载失败",
                         "解码错误：" + imagePath, getWindow());
                 if (image.getException() != null) image.getException().printStackTrace();
                 return;
             }
-
             slideImageView.setImage(image);
             zoomScale = 1.0;
             fitImageToWindow();

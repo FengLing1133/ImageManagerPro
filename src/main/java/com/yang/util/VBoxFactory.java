@@ -15,17 +15,17 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
+import lombok.Setter;
+
 import java.io.File;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
+@Setter
 public class VBoxFactory {
 
-    // 右键菜单构建器接口
-    public interface ContextMenuBuilder {
-        ContextMenu build();
-    }
     private static final int FILE_NAME_MAX_LENGTH = 18; // 文件名最大显示长度（含省略号）
     private static final Insets CARD_PADDING = new Insets(8);
     private static final Image FOLDER_ICON = loadIcon("/icons/folder.png");
@@ -33,12 +33,8 @@ public class VBoxFactory {
     private volatile boolean hoverEffectsEnabled = true;
 
     private static Image loadIcon(String path) {
-        try (var stream = VBoxFactory.class.getResourceAsStream(path)) {
-            if (stream != null) {
-                return new Image(stream);
-            }
-        } catch (Exception ignored) {
-        }
+        var stream = VBoxFactory.class.getResourceAsStream(path);
+        if (stream != null) return new Image(stream);
         return null;
     }
 
@@ -46,11 +42,6 @@ public class VBoxFactory {
         Image icon = directory ? FOLDER_ICON : FILE_ICON;
         return icon == null ? new ImageView() : new ImageView(icon);
     }
-
-    public void setHoverEffectsEnabled(boolean enabled) {
-        this.hoverEffectsEnabled = enabled;
-    }
-
     // 切换卡片选中状态
     private static void applyNormalStyle(VBox vBox) {
         vBox.getStyleClass().remove("card-selected");
@@ -65,7 +56,6 @@ public class VBoxFactory {
             vBox.getStyleClass().add("card-selected");
         }
     }
-
     // 通用 VBox 创建方法（文件/文件夹/图片）
     private VBox createBaseVBox(ImageView imageView, String name, int width) {
         imageView.setFitWidth(width);
@@ -74,18 +64,15 @@ public class VBoxFactory {
         imageView.setSmooth(true);
         Label nameLabel = new Label(truncateFileName(name));
         nameLabel.setMaxWidth(width);
-        nameLabel.setStyle("-fx-font-size: 12px; -fx-alignment: center; -fx-text-alignment: center;");
+        nameLabel.getStyleClass().add("card-label");
         nameLabel.setWrapText(true);// 允许换行显示长文件名
         VBox vBox = new VBox(5, imageView, nameLabel);
         vBox.getStyleClass().add("card");
         vBox.setPadding(CARD_PADDING);
         applyNormalStyle(vBox);
-        if (hoverEffectsEnabled) {
-            setupCardHoverEffect(vBox);
-        }
+        if (hoverEffectsEnabled) setupCardHoverEffect(vBox);
         return vBox;
     }
-
     //异步创建VBox（图标+名称+点击事件）
     public void createVBoxAsync(
             File file,
@@ -107,7 +94,6 @@ public class VBoxFactory {
         vBoxToFile.put(vBox, file);
         callback.accept(vBox);
     }
-
     // 创建图片VBox
     private void createImageVBox(
             File file,
@@ -118,7 +104,7 @@ public class VBoxFactory {
             Map<VBox, File> vBoxToFile,
             Runnable updateTipLabel,
             Runnable onDoubleClickImage,
-            ContextMenuBuilder contextMenuBuilder
+            Supplier<ContextMenu> contextMenuBuilder
     ) {
         ImageView imageView = new ImageView(image);
         VBox vBox = createBaseVBox(imageView, file.getName(), thumbSize);
@@ -129,7 +115,7 @@ public class VBoxFactory {
                 if (old instanceof ContextMenu && ((ContextMenu) old).isShowing()) {
                     ((ContextMenu) old).hide();
                 }
-                ContextMenu menu = contextMenuBuilder.build();
+                ContextMenu menu = contextMenuBuilder.get();
                 vBox.setUserData(menu);
                 menu.show(vBox, event.getScreenX(), event.getScreenY());
                 event.consume();
@@ -138,7 +124,6 @@ public class VBoxFactory {
         vBoxToFile.put(vBox, file);
         callback.accept(vBox);
     }
-
     // 异步创建图片VBox（后台加载完成后显示）
     public void createImageVBoxAsync(
             File file,
@@ -149,7 +134,7 @@ public class VBoxFactory {
             Runnable updateTipLabel,
             Runnable onDoubleClickImage,
             com.yang.service.ImageService imageService,
-            ContextMenuBuilder contextMenuBuilder
+            Supplier<ContextMenu> contextMenuBuilder
     ) {
         imageService.submitImageLoadTask(() -> {
             try {
@@ -162,7 +147,6 @@ public class VBoxFactory {
             }
         });
     }
-
     // 配置图片VBox的事件和菜单
     private void setupImageVBox(
             VBox vBox,
@@ -181,13 +165,10 @@ public class VBoxFactory {
         });
         setupFileVBoxSelection(vBox, selectedVBoxes, updateTipLabel);
     }
-
     // 统一的选中逻辑：左右键都可选中，仅 Ctrl+左键启用多选切换
     private void setupFileVBoxSelection(VBox vBox, Set<VBox> selectedVBoxes, Runnable updateTipLabel) {
         vBox.setOnMousePressed(event -> {
-            if (event.getButton() != MouseButton.PRIMARY && event.getButton() != MouseButton.SECONDARY) {
-                return;
-            }
+            if (event.getButton() != MouseButton.PRIMARY && event.getButton() != MouseButton.SECONDARY) return;
             boolean ctrlMultiSelect = event.isControlDown() && event.getButton() == MouseButton.PRIMARY;
             if (ctrlMultiSelect) {
                 if (!selectedVBoxes.contains(vBox)) {
@@ -213,7 +194,6 @@ public class VBoxFactory {
             }
         });
     }
-
     // 文件名过长省略工具方法
     public static String truncateFileName(String name) {
         if (name == null || name.length() <= FILE_NAME_MAX_LENGTH) return name;
@@ -222,7 +202,6 @@ public class VBoxFactory {
         int suffix = keep - prefix;
         return name.substring(0, prefix) + "..." + name.substring(name.length() - suffix);
     }
-
     // 卡片悬停时轻微上浮，提升现代感
     private void setupCardHoverEffect(VBox vBox) {
         TranslateTransition up = new TranslateTransition(Duration.millis(140), vBox); // 上浮动画
@@ -243,7 +222,6 @@ public class VBoxFactory {
             vBox.setEffect(null); // 还原
         });
     }
-
     // 动态生成右键菜单
     public ContextMenu buildContextMenu(int selectedCount, Runnable onDelete, Runnable onCopy, Runnable onRename, Runnable onPaste) {
         ContextMenu menu = new ContextMenu(); // 右键菜单
@@ -279,7 +257,6 @@ public class VBoxFactory {
         menu.getItems().addAll(deleteItem, copyItem, renameItem, pasteItem);
         return menu;
     }
-
     // 提供外部调用的快捷入口VBox创建方法，内部调用createBaseVBox
     public void createShortcutVBox(
             String displayName,
@@ -291,7 +268,7 @@ public class VBoxFactory {
     ) {
         ImageView imageView = createFileTypeIcon(true);
         VBox vBox = createBaseVBox(imageView, displayName, thumbSize);
-        (vBox.getChildren().get(1)).setStyle("-fx-font-size: 12px; -fx-alignment: center; -fx-text-alignment: center; -fx-font-weight: bold;");
+        (vBox.getChildren().get(1)).getStyleClass().add("card-label-bold");
         vBox.setOnMouseClicked(event -> {
             if (event.getClickCount() == 1) {
                 selectedVBoxes.forEach(VBoxFactory::applyNormalStyle);

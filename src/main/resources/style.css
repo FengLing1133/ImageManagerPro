@@ -124,6 +124,17 @@
     -fx-background-color: #F9FAFB;
 }
 
+/* 卡片名称标签 */
+.card-label {
+    -fx-font-size: 12px;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
+.card-label-bold {
+    -fx-font-weight: bold;
+}
+
 /* 卡片样式 */
 .card-normal {
     -fx-alignment: center;
