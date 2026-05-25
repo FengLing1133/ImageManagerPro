@@ -8,6 +8,7 @@ import java.util.Stack;
 
 /** 导航服务业务逻辑层实现 */
 @Service
+
 public class NavigationServiceImpl implements NavigationService {
 
     private final FileRepository fileRepository;
